@@ -109,15 +109,23 @@ MainTabs:
     Edit panel + delete per parsed item
     Success screen with calorie summary
 
-### Phase 2 — ⬜ NOT STARTED
+### Phase 2 — 🔄 IN PROGRESS
+
+#### Smart Day Card (Tier 1)
+- Backend ✅ Done — GET /api/patterns/today + POST /api/patterns/apply
+  (source-day duplication model; idempotent — 409 if today already has logs)
+- Frontend ✅ Done — SmartDayCard component on HomeScreen
+  (loaded in the existing focus effect, AsyncStorage daily dismissal,
+   Apply / Hide actions, Vietnamese day-name + meal-type labels)
 
 ---
 
-## Current Task: Phase 1.5 — Small Improvements
+## Current Task
 
-1. Remove meal search → manual log only
-2. Activity AI Chat (clone of ChatInputScreen for activities)
-3. Save Template (Tier 2 Quick-select) — meal + activity
+Smart Day Card (Tier 1) — ✅ COMPLETE (backend + frontend).
+
+Next task: TBD — possibly AI food photo scanning OR Apple Health
+integration OR Smart Day Card Edit/Merge screen (Phase 2.1).
 
 ---
 
@@ -228,7 +236,7 @@ dailyTarget = TDEE (maintain)
 |------|------|--------|
 | 3 | AI Chat Input | ✅ Phase 1 DONE |
 | 2 | Quick-select Templates | ⬜ Phase 2 |
-| 1 | Smart Day Card | ⬜ Phase 2 |
+| 1 | Smart Day Card | ✅ Backend + Frontend DONE (Phase 2) |
 
 Cold start → Tier 3 only.
 Tier 1 requires ≥3 data points same day of week.
@@ -254,6 +262,10 @@ Payment: RevenueCat (Apple IAP + Google Play)
 ---
 
 ## Future Ideas (do not implement yet)
+
+### Deferred to later phases
+- Smart Day Card Edit/Merge screen (Phase 2.1)
+- Premium gating for Smart Day Card (Phase 3)
 
 ### Home Warning System (Phase 2)
 Show warning when weight trend goes against goal.
@@ -288,6 +300,8 @@ For maintain goal users: rotate daily tip on Home.
 10. Deficit = target + burned - consumed
 11. Food parsing: GPT-4o-mini (not Claude — cheaper, faster)
 12. Delete meal/weight: no confirmation dialog (Alert was broken)
+13. Smart Day Card uses source-day duplication model (not aggregation). Apply endpoint is idempotent (409 if today has logs).
+14. AsyncStorage key for daily card dismissal: smartCardDismissed:YYYY-MM-DD
 
 ---
 
@@ -321,7 +335,7 @@ cd trim-backend && npm run dev   # port 5000
 cd trim-app && npx expo start --clear
 
 # Tests
-cd trim-backend && npm test      # 41 tests
+cd trim-backend && npm test      # 145 tests (142 pass, 3 known phase-1 failures)
 ```
 
 ---
