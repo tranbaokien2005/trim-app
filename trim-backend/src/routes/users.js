@@ -2,6 +2,13 @@ const express = require('express');
 const User = require('../models/User');
 const WeightLog = require('../models/WeightLog');
 const authenticate = require('../middleware/auth');
+const {
+  calculateAge,
+  calculateBMR,
+  calculateBaseline,
+  calculateTDEE,
+  calculateDailyTarget,
+} = require('../utils/bmr');
 
 const router = express.Router();
 
@@ -71,20 +78,11 @@ router.post('/me/complete-profile', authenticate, async (req, res, next) => {
     });
 
     // 3. Calculate BMR and daily calorie target
-    const dob = new Date(profile.dateOfBirth);
-    const age = Math.floor((Date.now() - dob) / (365.25 * 24 * 60 * 60 * 1000));
-    const base = 10 * weight + 6.25 * profile.height - 5 * age;
-    const bmr = profile.gender === 'male' ? Math.round(base + 5)
-              : profile.gender === 'female' ? Math.round(base - 161)
-              : Math.round(base - 78);
-
-    const baseline = Math.round(bmr * 0.2);
-    const tdee = bmr + baseline; // no logged activity on day 0
-    const weeklyDeficit = Math.round((goal.weeklyRate || 0) * 7700 / 7);
-    const dailyCalorieTarget =
-      goal.type === 'lose'     ? tdee - weeklyDeficit
-      : goal.type === 'gain'   ? tdee + weeklyDeficit
-      : tdee;
+    const age = calculateAge(profile.dateOfBirth);
+    const bmr = Math.round(calculateBMR(weight, profile.height, age, profile.gender));
+    const baseline = calculateBaseline(bmr);
+    const tdee = calculateTDEE(bmr); // no logged activity on day 0
+    const dailyCalorieTarget = calculateDailyTarget(tdee, goal.type, goal.weeklyRate);
 
     // 4. Set currentStats and push new goal
     const startDate = new Date();
@@ -127,20 +125,11 @@ router.put('/me/goal', authenticate, async (req, res, next) => {
     const user = await User.findById(userId);
     const { height, dateOfBirth, gender } = user.profile;
     const weight = user.currentStats.weight;
-    const age = Math.floor((Date.now() - new Date(dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
+    const age = calculateAge(dateOfBirth);
 
-    const base = 10 * weight + 6.25 * height - 5 * age;
-    const bmr = gender === 'male' ? Math.round(base + 5)
-              : gender === 'female' ? Math.round(base - 161)
-              : Math.round(base - 78);
-    const baseline = Math.round(bmr * 0.2);
-    const tdee = bmr + baseline;
-
-    const dailyAdjustment = Math.round((weeklyRate || 0) * 7700 / 7);
-    const dailyCalorieTarget =
-      type === 'lose' ? tdee - dailyAdjustment
-      : type === 'gain' ? tdee + dailyAdjustment
-      : tdee;
+    const bmr = Math.round(calculateBMR(weight, height, age, gender));
+    const tdee = calculateTDEE(bmr);
+    const dailyCalorieTarget = calculateDailyTarget(tdee, type, weeklyRate);
 
     await User.findByIdAndUpdate(userId, {
       $set: { 'goals.$[].isActive': false },

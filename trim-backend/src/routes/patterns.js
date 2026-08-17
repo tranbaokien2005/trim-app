@@ -2,6 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/auth');
 const MealLog     = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
+const { calculateBMRFromUser } = require('../utils/bmr');
 
 const router = express.Router();
 router.use(authenticate);
@@ -30,21 +31,6 @@ function subtractDays(dateStr, n) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().slice(0, 10);
-}
-
-/** Mifflin-St Jeor BMR. Returns null if profile data is incomplete. */
-function computeBMR(user) {
-  const weight = user.currentStats?.weight;
-  const height = user.profile?.height;
-  const dob    = user.profile?.dateOfBirth;
-  const gender = user.profile?.gender;
-  if (!weight || !height || !dob) return null;
-  const ageMs = Date.now() - new Date(dob).getTime();
-  const age   = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
-  const base  = 10 * weight + 6.25 * height - 5 * age;
-  if (gender === 'male')   return base + 5;
-  if (gender === 'female') return base - 161;
-  return base - 78;
 }
 
 function calcTotals(items) {
@@ -149,7 +135,7 @@ router.get('/today', async (req, res, next) => {
       0,
     );
 
-    const bmr = computeBMR(user);
+    const bmr = calculateBMRFromUser(user);
     const estimatedTDEE = bmr != null
       ? Math.round(bmr * 1.2 + totalCaloriesBurned)
       : Math.round(totalCaloriesConsumed + totalCaloriesBurned);

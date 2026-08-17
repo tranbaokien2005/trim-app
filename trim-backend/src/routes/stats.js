@@ -2,7 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/auth');
 const MealLog = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
-const { calculateBMR, calculateAge } = require('../utils/bmr');
+const { calculateBMR, calculateAge, calculateTDEE } = require('../utils/bmr');
 
 const router = express.Router();
 router.use(authenticate);
@@ -23,8 +23,7 @@ const buildDailyStats = async (userId, user, date) => {
     bmr = Math.round(calculateBMR(currentStats?.weight || 70, profile.height, age, profile.gender));
   }
 
-  const baseline = Math.round(bmr * 0.2);
-  const tdee = bmr + baseline + Math.round(caloriesBurned);
+  const tdee = calculateTDEE(bmr, caloriesBurned);
   const deficit = tdee - caloriesConsumed; // positive = deficit, negative = surplus
   const activeGoal = goals?.find((g) => g.isActive);
 
