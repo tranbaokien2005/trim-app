@@ -204,8 +204,8 @@ const ZONE_RANGES = {
   1.0:  { okLow: 900,  okHigh: 1200 },
 };
 
-const ZonePanel = ({ weeklyRate, actualDeficit, onChangePace }) => {
-  const targetDef = Math.round(weeklyRate * 7700 / 7);
+const ZonePanel = ({ weeklyRate, actualDeficit, targetDeficit, onChangePace }) => {
+  const targetDef = Math.round(targetDeficit || 0);
   const zones = ZONE_RANGES[weeklyRate] || {
     okLow:  Math.round(targetDef * 0.82),
     okHigh: Math.round(targetDef * 1.2),
@@ -419,26 +419,20 @@ const HomeScreen = ({ navigation }) => {
   const consumed     = stats?.caloriesConsumed || 0;
   const loggedBurned = stats?.caloriesBurned   || 0;
 
-  // BMR / baseline / TDEE (computed on-device, no activity multiplier)
-  const _w   = profile?.currentStats?.weight || 0;
-  const _h   = profile?.profile?.height || 0;
-  const _dob = profile?.profile?.dateOfBirth;
-  const _sex = profile?.profile?.gender;
-  const _age = _dob ? Math.floor((Date.now() - new Date(_dob)) / (365.25 * 24 * 60 * 60 * 1000)) : 25;
-  const _base = 10 * _w + 6.25 * _h - 5 * _age;
-  const bmr      = _w && _h ? (_sex === 'male' ? Math.round(_base + 5) : _sex === 'female' ? Math.round(_base - 161) : Math.round(_base - 78)) : 0;
-  const baseline = Math.round(bmr * 0.2);
-  const tdee     = bmr + baseline + loggedBurned;
+  // Tất cả lấy từ backend — KHÔNG tính lại trên máy.
+  const bmr      = stats?.bmr   || 0;
+  const tdee     = stats?.tdee  || 0;
+  const baseline = Math.max(0, tdee - bmr - loggedBurned);
+  const target   = stats?.dailyTarget ?? tdee;
 
   const activeGoal = profile?.goals?.find(g => g.isActive);
-  const goalType   = activeGoal?.type || 'lose';
-  const weeklyRate      = activeGoal?.weeklyRate || 0;
-  const dailyAdjustment = Math.round(weeklyRate * 7700 / 7);
-  const target =
-    activeGoal?.type === 'lose' ? tdee - dailyAdjustment
-    : activeGoal?.type === 'gain' ? tdee + dailyAdjustment
-    : tdee;
-  const actualDeficit = tdee - consumed;
+  const goalType   = stats?.goalType   || activeGoal?.type || 'lose';
+  const weeklyRate = stats?.weeklyRate ?? (activeGoal?.weeklyRate || 0);
+
+  // Mức deficit mục tiêu/ngày, suy từ số backend trả về (không dùng hằng số calo/kg).
+  const targetDeficit = Math.abs(tdee - target);
+
+  const actualDeficit = stats?.deficit ?? (tdee - consumed);
   const deficitAbs    = Math.abs(actualDeficit);
   const isSurplus     = consumed > tdee;
 
@@ -723,6 +717,7 @@ const HomeScreen = ({ navigation }) => {
               <ZonePanel
                 weeklyRate={weeklyRate}
                 actualDeficit={actualDeficit}
+                targetDeficit={targetDeficit}
                 onChangePace={handleChangePace}
               />
             </Animated.View>

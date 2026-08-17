@@ -2,7 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/auth');
 const MealLog = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
-const { calculateBMR, calculateAge, calculateTDEE } = require('../utils/bmr');
+const { calculateBMR, calculateAge, calculateTDEE, calculateDailyTarget } = require('../utils/bmr');
 const { getTodayInTz, subtractDays, isValidDateString } = require('../utils/date');
 
 const router = express.Router();
@@ -28,14 +28,39 @@ const buildDailyStats = async (userId, user, date) => {
   const deficit = tdee - caloriesConsumed; // positive = deficit, negative = surplus
   const activeGoal = goals?.find((g) => g.isActive);
 
+  // Target tính LIVE từ TDEE hôm nay.
+  // KHÔNG dùng activeGoal.dailyCalorieTarget — đó là ảnh chụp lúc tạo goal,
+  // không phản ánh cân nặng hiện tại lẫn calo đã tập hôm nay.
+  const goalType   = activeGoal?.type || null;
+  const weeklyRate = activeGoal?.weeklyRate || 0;
+  const dailyTarget = goalType
+    ? Math.round(calculateDailyTarget(tdee, goalType, weeklyRate))
+    : null;
+
+  const remaining = dailyTarget !== null
+    ? dailyTarget - Math.round(caloriesConsumed)
+    : null;
+
+  // Cảnh báo thiếu dữ liệu — FE phải render được cả khi thiếu, không crash.
+  const warnings = [];
+  if (!profile?.dateOfBirth || !profile?.height || !profile?.gender) {
+    warnings.push('PROFILE_INCOMPLETE');
+  }
+  if (!activeGoal) warnings.push('NO_ACTIVE_GOAL');
+
   return {
     date,
     caloriesConsumed: Math.round(caloriesConsumed),
     caloriesBurned: Math.round(caloriesBurned),
     bmr,
     tdee: Math.round(tdee),
-    deficit: Math.round(deficit),
-    dailyTarget: Math.round(activeGoal?.dailyCalorieTarget || 0),
+    deficit: Math.round(deficit),          // = tdee - consumed. Dương = deficit.
+    dailyTarget,                            // số LIVE, không phải số lưu trong goal
+    remaining,                              // dailyTarget - consumed
+    goalType,
+    weeklyRate,
+    weight: currentStats?.weight ?? null,
+    warnings,
     meals,
     activities,
   };

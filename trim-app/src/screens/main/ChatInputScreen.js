@@ -120,9 +120,7 @@ const ChatInputScreen = ({ navigation }) => {
       // Fetch today's stats for calorie insight — non-blocking
       try {
         const statsRes = await api.get('/stats/daily', { params: { date: getToday() } });
-        const consumed = statsRes.data?.calories?.consumed || 0;
-        const target   = statsRes.data?.calories?.target   || 0;
-        setRemainingCalories(target > 0 ? target - consumed : null);
+        setRemainingCalories(statsRes.data?.remaining ?? null);
       } catch {
         setRemainingCalories(null);
       }
