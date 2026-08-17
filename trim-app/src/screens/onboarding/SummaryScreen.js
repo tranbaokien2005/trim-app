@@ -52,6 +52,7 @@ const SummaryScreen = ({ navigation, route }) => {
           dateOfBirth: userData.dob,
           gender: userData.gender,
           height: userData.height,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
         weight: userData.weight,
         goal: {

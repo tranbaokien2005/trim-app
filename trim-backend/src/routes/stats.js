@@ -3,6 +3,7 @@ const authenticate = require('../middleware/auth');
 const MealLog = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
 const { calculateBMR, calculateAge, calculateTDEE } = require('../utils/bmr');
+const { getTodayInTz, subtractDays, isValidDateString } = require('../utils/date');
 
 const router = express.Router();
 router.use(authenticate);
@@ -43,7 +44,7 @@ const buildDailyStats = async (userId, user, date) => {
 // GET /api/stats/daily?date=YYYY-MM-DD
 router.get('/daily', async (req, res, next) => {
   try {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const date = req.query.date || getTodayInTz(req.user.profile?.timezone);
     const stats = await buildDailyStats(req.user._id, req.user, date);
     res.json(stats);
   } catch (error) {
@@ -54,21 +55,24 @@ router.get('/daily', async (req, res, next) => {
 // GET /api/stats/weekly
 router.get('/weekly', async (req, res, next) => {
   try {
-    const today = new Date();
-    const dates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (6 - i));
-      return d.toISOString().slice(0, 10);
-    });
+    const end = req.query.end || getTodayInTz(req.user.profile?.timezone);
+    if (!isValidDateString(end)) {
+      return res.status(400).json({ message: 'Invalid end date, expected YYYY-MM-DD' });
+    }
 
-    const days = await Promise.all(dates.map((date) => buildDailyStats(req.user._id, req.user, date)));
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 90);
+
+    // mảng ngày tăng dần, phần tử cuối là `end`
+    const dates = Array.from({ length: days }, (_, i) => subtractDays(end, days - 1 - i));
+
+    const dayStats = await Promise.all(dates.map((date) => buildDailyStats(req.user._id, req.user, date)));
 
     res.json({
-      days,
+      days: dayStats,
       totals: {
-        caloriesConsumed: days.reduce((s, d) => s + d.caloriesConsumed, 0),
-        caloriesBurned: days.reduce((s, d) => s + d.caloriesBurned, 0),
-        avgDeficit: Math.round(days.reduce((s, d) => s + d.deficit, 0) / 7),
+        caloriesConsumed: dayStats.reduce((s, d) => s + d.caloriesConsumed, 0),
+        caloriesBurned: dayStats.reduce((s, d) => s + d.caloriesBurned, 0),
+        avgDeficit: Math.round(dayStats.reduce((s, d) => s + d.deficit, 0) / days),
       },
     });
   } catch (error) {

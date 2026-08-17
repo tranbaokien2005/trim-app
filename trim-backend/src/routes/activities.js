@@ -1,6 +1,7 @@
 const express = require('express');
 const authenticate = require('../middleware/auth');
 const ActivityLog = require('../models/ActivityLog');
+const { getTodayInTz } = require('../utils/date');
 const OpenAI = require('openai').default;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -50,7 +51,7 @@ router.post('/parse-text', async (req, res, next) => {
     }
 
     const totalCaloriesBurned = entries.reduce((s, e) => s + (e.caloriesBurned || 0), 0);
-    res.json({ entries, totalCaloriesBurned, text: text.trim(), date: date || new Date().toISOString().slice(0, 10) });
+    res.json({ entries, totalCaloriesBurned, text: text.trim(), date: date || getTodayInTz(req.user.profile?.timezone) });
   } catch (error) {
     next(error);
   }

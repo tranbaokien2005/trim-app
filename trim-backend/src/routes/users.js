@@ -9,6 +9,7 @@ const {
   calculateTDEE,
   calculateDailyTarget,
 } = require('../utils/bmr');
+const { getTodayInTz } = require('../utils/date');
 
 const router = express.Router();
 
@@ -62,13 +63,14 @@ router.post('/me/complete-profile', authenticate, async (req, res, next) => {
         dateOfBirth: new Date(profile.dateOfBirth),
         gender: profile.gender,
         height: profile.height,
+        timezone: profile.timezone || undefined,
       },
       onboardingCompleted: true,
     });
 
     // 2. Create first WeightLog
     const bmi = parseFloat((weight / Math.pow(profile.height / 100, 2)).toFixed(1));
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayInTz(profile.timezone);
     await WeightLog.create({
       user: userId,
       date: today,

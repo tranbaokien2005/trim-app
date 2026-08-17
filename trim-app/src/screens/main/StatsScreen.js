@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
+import { formatDateYYYYMMDD } from '../../utils/dateUtils';
 
 const C = {
   bg: '#0F0F0F',
@@ -95,7 +96,7 @@ const StatsScreen = () => {
     if (!isRefresh) setLoading(true);
     setError(null);
     return Promise.all([
-      api.get('/stats/weekly'),
+      api.get('/stats/weekly', { params: { end: formatDateYYYYMMDD(new Date()) } }),
       api.get('/weights?limit=7'),
     ])
       .then(([weeklyRes, weightsRes]) => {

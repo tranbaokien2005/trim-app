@@ -3,6 +3,7 @@ const authenticate = require('../middleware/auth');
 const MealLog     = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
 const { calculateBMRFromUser } = require('../utils/bmr');
+const { getTodayInTz, subtractDays } = require('../utils/date');
 
 const router = express.Router();
 router.use(authenticate);
@@ -10,28 +11,6 @@ router.use(authenticate);
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Return today's date string (YYYY-MM-DD) in the given IANA timezone. */
-function getTodayInTz(timezone) {
-  const tz = timezone || 'UTC';
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year:  'numeric',
-      month: '2-digit',
-      day:   '2-digit',
-    }).format(new Date());
-  } catch (_) {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
-
-/** Return YYYY-MM-DD string that is n days before dateStr. */
-function subtractDays(dateStr, n) {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
 
 function calcTotals(items) {
   return {
