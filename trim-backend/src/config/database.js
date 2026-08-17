@@ -5,6 +5,9 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      // Production KHÔNG tự tạo index — tránh việc một schema sai
+      // âm thầm dựng lại index nguy hiểm trên DB thật.
+      autoIndex: process.env.NODE_ENV !== 'production',
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);

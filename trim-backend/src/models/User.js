@@ -85,7 +85,10 @@ const userSchema = new mongoose.Schema({
     createdAt: {
       type: Date,
       default: Date.now,
-      expires: '30d', // TTL index
+      // KHÔNG đặt `expires` ở đây. Mongoose sẽ tạo TTL index trên
+      // "refreshTokens.createdAt" — TTL trên field kiểu MẢNG khiến MongoDB
+      // xoá CẢ DOCUMENT khi phần tử sớm nhất quá hạn, tức là xoá luôn user.
+      // Hạn của refresh token do JWT exp lo; dọn mảng bằng code ở Giai đoạn 1.
     },
   }],
 }, {
