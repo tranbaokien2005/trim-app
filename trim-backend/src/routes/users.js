@@ -1,7 +1,9 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const WeightLog = require('../models/WeightLog');
 const authenticate = require('../middleware/auth');
+const { deleteUserData } = require('../utils/deleteUserData');
 const {
   calculateAge,
   calculateBMR,
@@ -171,6 +173,31 @@ router.post('/complete-onboarding', authenticate, async (req, res, next) => {
   try {
     await User.findByIdAndUpdate(req.user._id, { onboardingCompleted: true });
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/users/me — xoá tài khoản vĩnh viễn (App Store 5.1.1(v))
+router.delete('/me', authenticate, async (req, res, next) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ message: 'Password is required to delete your account' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    const deleted = await deleteUserData(user._id, { deleteUser: true });
+
+    res.json({ message: 'Account deleted', deleted });
   } catch (error) {
     next(error);
   }

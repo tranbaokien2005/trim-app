@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +22,7 @@ const C = {
   text: '#FFFFFF',
   secondary: '#888888',
   danger: '#E74C3C',
+  destructive: '#FF4444',
   border: '#2A2A2A',
 };
 
@@ -35,6 +38,11 @@ const ProfileScreen = () => {
   const [userData, setUserData] = useState(authUser);
   const [loading, setLoading] = useState(!authUser);
 
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   const load = useCallback(() => {
     return api.get('/users/me')
       .then((res) => setUserData(res.data.user))
@@ -46,6 +54,37 @@ const ProfileScreen = () => {
 
   const handleLogout = () => {
     logout();
+  };
+
+  const openDeleteModal = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setShowDelete(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDelete(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      // axios sends a DELETE body only via `data`
+      await api.delete('/users/me', { data: { password: deletePassword } });
+      setShowDelete(false);
+      logout(); // clears SecureStore + state → RootNavigator returns to Onboarding
+    } catch (err) {
+      const status = err?.response?.status;
+      setDeleteError(
+        status === 401
+          ? 'Incorrect password. Please try again.'
+          : err?.response?.data?.message || 'Could not delete your account. Please try again.'
+      );
+      setDeleting(false); // keep the modal open so the error is visible
+    }
   };
 
   if (loading) {
@@ -156,7 +195,75 @@ const ProfileScreen = () => {
           <MaterialCommunityIcons name="logout" size={18} color={C.danger} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
+
+        {/* Delete account — deliberately quieter than Log Out */}
+        <TouchableOpacity
+          style={styles.deleteLink}
+          onPress={openDeleteModal}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.deleteLinkText}>Delete account</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={showDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete account?</Text>
+
+            <Text style={styles.modalBody}>
+              This permanently deletes your account and every weight, meal and activity
+              log plus every template you have saved. This cannot be undone.
+            </Text>
+
+            <Text style={styles.modalLabel}>Enter your password to confirm</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={deletePassword}
+              onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Password"
+              placeholderTextColor={C.secondary}
+              editable={!deleting}
+            />
+
+            {deleteError ? <Text style={styles.modalError}>{deleteError}</Text> : null}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalCancel]}
+                onPress={closeDeleteModal}
+                disabled={deleting}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  styles.modalDelete,
+                  (!deletePassword || deleting) && styles.modalDeleteDisabled,
+                ]}
+                onPress={handleDeleteAccount}
+                disabled={!deletePassword || deleting}
+                activeOpacity={0.7}
+              >
+                {deleting
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={styles.modalDeleteText}>Delete forever</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -223,7 +330,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 16,
     marginTop: 24,
-    marginBottom: 40,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: C.danger,
     borderRadius: 10,
@@ -231,6 +338,56 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: C.danger },
+
+  deleteLink: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginBottom: 40,
+  },
+  deleteLinkText: { fontSize: 14, fontWeight: '600', color: C.destructive },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: C.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: C.text, marginBottom: 10 },
+  modalBody: { fontSize: 14, color: C.secondary, lineHeight: 20, marginBottom: 18 },
+  modalLabel: { fontSize: 12, color: C.secondary, marginBottom: 6 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: C.text,
+    backgroundColor: C.bg,
+  },
+  modalError: { fontSize: 13, color: C.destructive, marginTop: 10 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancel: { borderWidth: 1, borderColor: C.border },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: C.text },
+  modalDelete: { backgroundColor: C.destructive },
+  modalDeleteDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
 
 export default ProfileScreen;
