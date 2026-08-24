@@ -724,3 +724,42 @@ GOAL — từng dòng:
 [x] Đã commit (508e96d); .env KHÔNG trong git.
 
 Bằng chứng số: `Test Suites: 11 passed | Tests: 194 passed, 194 total`. Commit 508e96d.
+
+═══════════════════════════════════════════════════════════════════════════════
+RUNBOOK 004 — Deploy hardening + RefreshToken security
+═══════════════════════════════════════════════════════════════════════════════
+
+[12:00] START — Phase 1 (an toàn) trước. P1.0 baseline: 194 passed, 0 fail. Tree sạch. Tiếp.
+
+[12:10] OK — PHASE 1 code:
+  - P1.1 app.js: `app.set('trust proxy', 1)` TRƯỚC rate limiter. Giá trị 1 (1 hop), KHÔNG `true`
+    (tránh spoof X-Forwarded-For lách rate limit). Verify runtime: app.get('trust proxy')===1.
+  - P1.2 verify prod index sync: đọc database.js — connectDB guard `NODE_ENV!=='test'` → production
+    CHẠY syncAllIndexes (autoIndex off). Test deploy-config chứng minh syncAllIndexes tạo index thật
+    khi autoIndex=false (email unique tồn tại sau sync).
+  - P1.3 api.js (frontend): BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEV_FALLBACK (LAN IP).
+    Không hardcode URL prod, không cài dep. Ghi cảnh báo deploy phải set EXPO_PUBLIC_API_URL.
+  - Test mới src/__tests__/deploy-config.test.js (3): trust proxy===1 (không true); guard prod;
+    syncAllIndexes tạo index dù autoIndex=false. Full suite: 197 passed, 0 fail.
+
+[12:20] AGENT/@trim-security Phase 1 — GO, KHÔNG finding chặn. trust proxy=1 (không true) đúng
+  thứ tự trước rate limiter (app.js:23); với 1 hop Railway, Express lấy IP thật từ XFF, attacker
+  không spoof lách authLimiter được. api.js không hardcode URL prod/secret; fallback LAN IP fail an
+  toàn. Không TTL/expires mới. 2 lưu ý LOW ops (defer): (a) xem lại số hop nếu thêm proxy trước
+  Railway; (b) tuyệt đối không để secret vào EXPO_PUBLIC_* (nằm trong client bundle).
+
+[12:21] OK — P2.0 read-first (đọc, tự tiếp):
+  1. User.refreshTokens = [{ token: String (JWT THÔ), createdAt: Date (KHÔNG expires) }]. Lưu token
+     THÔ trong ARRAY. Mảng phình theo mỗi login; logout $pull 1 phần tử. (Đây là chỗ TTL-trên-array
+     từng xoá 18 account — comment cảnh báo còn nguyên.)
+  2. auth.js:
+     - login (42-44) + register (93-95): generateRefreshToken (JWT 30d) → push {token} vào mảng.
+     - refresh (109-134): verify JWT → findOne user có refreshTokens.token===token → cấp CHỈ access
+       token mới. KHÔNG xoay refresh. Response { accessToken }.
+     - logout (137-153): verify JWT → $pull token khỏi mảng. Response { message }.
+     - jwt.js: refresh token là JWT ký JWT_REFRESH_SECRET, exp 30d.
+  3. client api.js interceptor: POST /auth/refresh { refreshToken } → CHỈ đọc data.accessToken,
+     KHÔNG lưu refresh token mới. ⚠ HỆ QUẢ: nếu Phase 2 xoay token mà client không lưu token mới,
+     lần refresh sau dùng token cũ (đã revoke) → reuse-detection revoke cả family → đăng xuất nhầm.
+     ⇒ Phase 2 PHẢI cập nhật client: refresh response trả { accessToken, refreshToken } và interceptor
+       lưu refreshToken mới vào SecureStore. (Nằm trong scope: GOAL "client refresh vẫn chạy".)

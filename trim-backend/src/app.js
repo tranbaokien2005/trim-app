@@ -16,6 +16,12 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Sau proxy (Railway), client IP thật nằm trong X-Forwarded-For. KHÔNG set trust proxy
+// thì express-rate-limit key theo IP của proxy (giống nhau cho mọi request) → authLimiter
+// vô dụng. Tin ĐÚNG 1 hop proxy (giá trị 1), KHÔNG dùng `true`: `true` tin mọi proxy nên
+// attacker có thể spoof X-Forwarded-For để lách rate limit. (finding F3)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : true,

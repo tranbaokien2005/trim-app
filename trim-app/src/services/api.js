@@ -19,8 +19,13 @@ const processQueue = (error, token = null) => {
   _failedQueue = [];
 };
 
-// TODO(GĐ4): chuyển sang biến môi trường, IP hardcode sẽ chết khi router đổi IP
-const BASE_URL = 'http://192.168.68.77:5000/api';
+// baseURL theo môi trường. Production/staging: set EXPO_PUBLIC_API_URL khi build
+// (vd URL Railway) — Expo tự inject biến EXPO_PUBLIC_* vào bundle lúc build, KHÔNG
+// cần dependency mới. Dev: fallback LAN IP (đổi theo router local).
+// ⚠ DEPLOY: phải set EXPO_PUBLIC_API_URL=<Railway URL>/api trước khi build production;
+// nếu không, app sẽ trỏ vào LAN IP dev và không kết nối được.
+const DEV_FALLBACK_URL = 'http://192.168.68.77:5000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEV_FALLBACK_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
