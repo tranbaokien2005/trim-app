@@ -1002,3 +1002,15 @@ GOAL tổng — từng dòng:
 [x] Suite 218 (203 + 15 mới), 0 fail · không .env · không dep mới · không TTL.
 
 Bằng chứng: `Test Suites: 14 passed | Tests: 218 passed`. Commits: 313a361 (P1), Phase 2 HEAD.
+
+═══════════════════════════════════════════════════════════════════════════════
+RUNBOOK 006 — Pre-launch: build prep + Shortcuts + password reset
+═══════════════════════════════════════════════════════════════════════════════
+
+[16:00] START — baseline 218/0, tree sạch.
+
+[16:02] OK — PHASE 1 build prep (app.json):
+  - ios.bundleIdentifier = "com.baokien.trim"; ios.buildNumber = "1"
+  - android.package = "com.baokien.trim"
+  - version "1.0.0" đã có sẵn.
+  - `npx expo config --type public` EXIT 0, resolve đúng bundleIdentifier/package/buildNumber. Không build, không cài gì.

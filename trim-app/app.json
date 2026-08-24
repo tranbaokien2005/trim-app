@@ -14,9 +14,12 @@
       "backgroundColor": "#0F0F0F"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.baokien.trim",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.baokien.trim",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo.png",
         "backgroundColor": "#0F0F0F"
