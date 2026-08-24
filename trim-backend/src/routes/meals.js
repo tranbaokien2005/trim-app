@@ -2,9 +2,7 @@ const express = require('express');
 const authenticate = require('../middleware/auth');
 const MealLog = require('../models/MealLog');
 const { getTodayInTz } = require('../utils/date');
-const OpenAI = require('openai').default;
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { parseMealText } = require('../utils/parseText');
 
 const router = express.Router();
 router.use(authenticate);
@@ -147,34 +145,13 @@ router.post('/parse-text', async (req, res, next) => {
     const { text, date } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ message: 'text is required' });
 
-    let raw;
-    try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a nutrition parser. Parse meal descriptions into JSON. Return ONLY a valid JSON array, no explanation, no markdown:\n[{"name":"...","calories":0,"protein":0,"carbs":0,"fat":0,"servingSize":"...","nutritionNote":"One short sentence about nutrition profile, e.g. High in carbs, low protein"}]\nRules: Vietnamese portion sizes, 1 serving default, round to integers, [] if no food, ignore activities.`,
-          },
-          { role: 'user', content: text.trim() },
-        ],
-      });
-      raw = response.choices[0].message.content.trim();
-    } catch (apiErr) {
-      console.error('OpenAI API error:', apiErr);
-      return res.status(500).json({ message: 'AI parsing failed' });
-    }
-
     let items;
     try {
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('No JSON array found');
-      items = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(items)) throw new Error('Not an array');
-    } catch (parseErr) {
-      console.error('Parse error:', parseErr, 'Raw:', raw);
-      return res.status(500).json({ message: 'Failed to parse AI response' });
+      items = await parseMealText(text.trim());
+    } catch (err) {
+      if (err.stage === 'api')   return res.status(500).json({ message: 'AI parsing failed' });
+      if (err.stage === 'parse') return res.status(500).json({ message: 'Failed to parse AI response' });
+      throw err;
     }
 
     const totalCalories = items.reduce((sum, item) => sum + (item.calories || 0), 0);
