@@ -116,8 +116,12 @@ const RegisterScreen = ({ navigation }) => {
         userData: { name: name.trim(), email: email.trim() },
       });
     } catch (err) {
-      console.log('Register error:', err.message, err);
-      setApiError(err.message || 'Something went wrong. Please try again.');
+      console.log('Register error:', err?.response?.data || err.message, err);
+      // axios puts the backend message on err.response.data.message; err.message
+      // would only be "Request failed with status code 400".
+      setApiError(
+        err?.response?.data?.message || err.message || 'Something went wrong. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

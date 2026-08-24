@@ -1,22 +1,11 @@
 import api from './api';
 import * as SecureStore from 'expo-secure-store';
 
-export const register = (userData) => {
-  return fetch('http://192.168.68.108:5000/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-  })
-    .then((response) =>
-      response.json().then((data) => ({ response, data }))
-    )
-    .then(({ response, data }) => {
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-      return data; // { accessToken, refreshToken, user }
-    });
-};
+// Goes through the shared axios instance, so BASE_URL lives in api.js only.
+// Note: axios rejects on 4xx/5xx, so the backend message is on
+// err.response.data.message — not err.message like the old fetch version.
+export const register = (userData) =>
+  api.post('/auth/register', userData).then((res) => res.data); // { accessToken, refreshToken, user }
 
 export const login = async (email, password) => {
   try {

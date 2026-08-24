@@ -19,7 +19,8 @@ const processQueue = (error, token = null) => {
   _failedQueue = [];
 };
 
-const BASE_URL = 'http://192.168.68.108:5000/api';
+// TODO(GĐ4): chuyển sang biến môi trường, IP hardcode sẽ chết khi router đổi IP
+const BASE_URL = 'http://192.168.68.77:5000/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
