@@ -1,5 +1,7 @@
 const express = require('express');
 const authenticate = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { activitySchema } = require('../validation/schemas');
 const ActivityLog = require('../models/ActivityLog');
 const { getTodayInTz } = require('../utils/date');
 const { parseActivityText } = require('../utils/parseText');
@@ -32,7 +34,7 @@ router.post('/parse-text', async (req, res, next) => {
 });
 
 // POST /api/activities
-router.post('/', async (req, res, next) => {
+router.post('/', validate(activitySchema), async (req, res, next) => {
   try {
     const { date, entries } = req.body;
 

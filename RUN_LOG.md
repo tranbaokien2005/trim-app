@@ -545,3 +545,182 @@ GOAL — từng dòng:
 [x] WeightLog.date migration: dry-run xong (1 doc), PARK chờ Ken (KHÔNG apply).
 
 Bằng chứng số: full suite `Test Suites: 10 passed, 10 total | Tests: 178 passed, 178 total`.
+
+═══════════════════════════════════════════════════════════════════════════════
+RUNBOOK 003 — Giai đoạn 1c (validation, password, anti-enum, lockout)
+═══════════════════════════════════════════════════════════════════════════════
+
+[10:30] START — đọc RUNBOOK_003_phase1c.md. Làm Task 0 → 2 rồi DỪNG chờ Ken.
+
+[10:30] OK — TASK 0 baseline: Tests 178 passed, 0 fail; Test Suites 10 passed. KHỚP 178/0.
+        Working tree sạch (chỉ RUNBOOK_003_phase1c.md untracked). Lưu scratchpad/trim-p1c-baseline.txt.
+
+[10:40] OK — TASK 2 (read-first, KHÔNG sửa). Báo cáo 5 mục:
+
+  ── MỤC 1: auth.js register/login hiện trả gì ──
+  - Register email TRÙNG: auth.js:18-20 → 400 "User already exists"
+    (findOne kiểm TƯỜNG MINH TRƯỚC khi save). → VECTOR ENUMERATION: nói rõ email đã tồn tại.
+  - Login SAI EMAIL: auth.js:51-53 → 401 "Invalid credentials" (return SỚM, KHÔNG chạy bcrypt).
+  - Login SAI MẬT KHẨU: auth.js:56-58 → 401 "Invalid credentials" (sau bcrypt.compare).
+  - Nhận xét: login ĐÃ cùng message+status cho 2 nhánh. NHƯNG (a) message là "Invalid
+    credentials" (Task 5 muốn "Invalid email or password"); (b) TIMING LEAK: nhánh sai email
+    bỏ qua bcrypt → thời gian phản hồi khác nhánh sai mật khẩu → lộ email tồn tại qua timing.
+
+  ── MỤC 2: Validation hiện có ──
+  - THỦ CÔNG INLINE trong từng route, KHÔNG có middleware validation dùng chung.
+    weights.js:17; quicklog.js:43-58; meals.js:165-200; activities.js:39-50.
+  - package.json KHÔNG có zod, KHÔNG có express-validator. (zod được Ken pre-approve trong runbook.)
+
+  ── MỤC 3: Rate limiter ──
+  - app.js:27-32 `limiter` max 100/15min áp `/api/` (mọi route).
+  - app.js:34-39 `authLimiter` max 5/15min (test: 10000) áp `/api/auth` — RIÊNG, chặt hơn.
+    Đặt TRƯỚC khi mount routes. → auth ĐÃ được rate-limit. (GOAL "rate limit áp cho auth" đã đạt sẵn.)
+
+  ── MỤC 4: User.js lockout fields ──
+  - CHƯA có failedLoginAttempts, CHƯA có lockUntil → cần thêm (Task 6).
+  - refreshTokens: [{ token: String, createdAt: Date (KHÔNG expires — có comment cảnh báo
+    TTL trên mảng xoá cả user, vụ 18-account) }].
+  - currentStats: { weight, bmi, bmr, baseline, weightUpdatedAt }. email unique. onboardingCompleted.
+    Không còn index {email:1} thừa (đã dọn GĐ2). → thêm 2 field lockout là an toàn, không đụng mảng.
+
+  ── MỤC 5: errorHandler.js đường E11000 ──
+  - errorHandler.js:13-18: err.code===11000 → 400 "<Field> already exists" (vd "Email already exists").
+  - Register duplicate HIỆN KHÔNG rơi vào đây (findOne tường minh chặn trước, trả 400 "User already
+    exists"). NHƯNG nếu bỏ findOne, unique index ném E11000 khi save → errorHandler → "Email already
+    exists" (VẪN lộ). → đường race cũng là vector enum.
+  - Ngoài ra errorHandler.js:5-11: Mongoose ValidationError → 400 kèm mảng `errors` (echo message
+    validation) — cần chú ý khi thiết kế message an toàn ở Task 3 (không echo giá trị nhạy cảm).
+
+[10:41] STOP (điểm dừng bắt buộc) — Task 2 xong. DỪNG chờ Ken xác nhận:
+  (a) đồng ý dùng zod cho lớp validation?
+  (b) hướng chống enumeration cho REGISTER (Task 6):
+      - Hướng (a): GIỮ reject duplicate, đảm bảo KHÔNG rò qua global 400 khác lạ + rate limit chặt.
+        (Login đã generic; register vẫn nói "đã tồn tại" nhưng có rate limit 5/15min chặn dò hàng loạt.)
+      - Hướng (b): đổi register → 200 generic "check your email" — NHƯNG cần email verification
+        (CHƯA có, thuộc GĐ1d). Nếu Ken chọn (b) mà chưa có verify → PARK phần register anti-enum,
+        làm (a) tạm, ghi log.
+      Runner NGHIÊNG (a) vì (b) cần hạ tầng email verify chưa tồn tại; nhưng đây là quyết định của Ken.
+  Cây sạch, chưa sửa file nào.
+
+[11:00] DEC (Ken chốt) — tiếp tục tới GOAL, không dừng hỏi (trừ STOP/ESCALATE):
+  - zod: DÙNG.
+  - LOGIN: giữ message "Invalid credentials" (đã generic, KHÔNG đổi chữ). Vá TIMING LEAK:
+    luôn chạy bcrypt.compare với hash giả cố định khi email không tồn tại → thời gian 2 nhánh
+    bằng nhau. Test khẳng định 2 nhánh giống nhau về message+status (và bcrypt luôn được gọi nếu test được).
+  - REGISTER anti-enum = hướng (a): giữ message thân thiện "This email is already registered" (UX).
+    Anti-enum ĐẦY ĐỦ DEFER sang GĐ1d (cần email verification). Mitigation hiện tại = rate limit
+    (authLimiter 5/15min) — xác nhận áp cho register. KHÔNG tốn effort giấu tồn tại ở register.
+
+[11:01] START — cài zod (pre-approved) + khảo sát test deps trước khi code.
+
+[11:20] OK — TASK 3/4/5/6 code:
+  - Cài zod ^4.4.3 (pre-approved). Tạo src/validation/schemas.js (register, login, meal,
+    activity, weight, quicklog) + src/middleware/validate.js (safeParse → 400 {message,errors};
+    KHÔNG echo giá trị nhạy cảm; replace req.body chỉ cho auth để normalize email).
+  - Áp validate: auth register/login (replace), meals/activities/weights/quicklog POST / (gate).
+    Giữ nguyên validation thủ công cũ ở write routes (defense-in-depth; zod chặn trước).
+  - TASK 4 password strength trong registerSchema: >=8 ký tự + có chữ + có số. Message rõ.
+  - TASK 5 login timing-safe: LUÔN bcrypt.compare (DUMMY_HASH cùng cost khi email không tồn tại).
+    Giữ message "Invalid credentials" (Ken: không đổi chữ). Hai nhánh sai-email/sai-mật-khẩu
+    trả GIỐNG HỆT 401 + message.
+  - TASK 6 lockout: thêm failedLoginAttempts + lockUntil (Date thường, KHÔNG expires/TTL) vào User.
+    5 sai liên tiếp → lockUntil = now+15min (env chỉnh được), reset đếm. Đang khoá → 401 generic
+    (không lộ trạng thái khoá). Login đúng → reset. REGISTER anti-enum = (a): message thân thiện
+    "This email is already registered"; anti-enum ĐẦY ĐỦ DEFER GĐ1d (email verification).
+  - Đổi test duplicate assertion phase1:128 /already exists/ → /already registered/ (message mới).
+  - Full suite sau code: 178 passed, 0 fail (KHÔNG regression).
+
+[11:30] OK — Test mới src/__tests__/auth-security.test.js (16 test), full suite 194 passed / 0 fail:
+  - validation (5): thiếu field/sai email/thiếu password → 400; message KHÔNG echo password; hợp lệ → 201.
+  - password strength (4): <8 / thiếu số / thiếu chữ → 400; đạt → 201.
+  - login generic+timing (3): sai-email & sai-mật-khẩu CÙNG 401+message; email không tồn tại VẪN
+    gọi bcrypt.compare (spy, timing-safe); đúng → 200.
+  - lockout (3): 5 sai → khoá, lần 6 dù đúng vẫn 401 generic + lockUntil tương lai; login đúng reset
+    đếm; lockUntil quá khứ → login đúng lại được.
+  - register anti-enum (1): trùng → 400 "This email is already registered".
+  MUTATION (runbook Task 7 yêu cầu): phá nhánh no-user trả 404 khác → test "hai nhánh giống nhau"
+  FAIL (Expected 401, Received 404) → test KHÔNG rỗng. Khôi phục auth.js, xác nhận test xanh lại.
+
+[11:45] AGENT/@trim-security — soi diff GĐ1c. KHÔNG có finding CHẶN → Task 7 không STOP.
+  Checklist: (1) TTL/expires: PASS — lockUntil là Date thường KHÔNG expires (không TTL, không xoá
+  user); failedLoginAttempts Number không index. (2) .env/secret: PASS — DUMMY_HASH là hash của
+  chuỗi public, không phải secret. (3) validation bypass: PASS — mọi route ghi trong scope đã áp
+  validate; message không echo giá trị nhạy cảm. (4) enum: login generic + timing-safe (message+
+  status+đường bcrypt đồng nhất; locked cũng 401 y hệt); authLimiter 5/15min XÁC NHẬN áp
+  /api/auth/register; không có route forgot/reset leak. (5) lockout tự hết sau cửa sổ (thuần tính
+  toán, không cron), reset persist. (6) DUMMY_HASH cùng cost factor với hash thật.
+  Findings LOW/INFO (defer, không chặn):
+    F1 [LOW] residual timing enum: nhánh user-thật-sai-mật-khẩu chạy thêm user.save() (1 write)
+       còn nhánh no-user thì không → chênh latency. bcrypt cost 12 áp đảo nên tín hiệu yếu.
+    F2 [LOW] account-lockout DoS self-healing (authLimiter chặn single-IP, khoá tự hết 15min).
+    F3 [INFO, pre-existing, ngoài diff] app.js chưa set 'trust proxy' → rate-limit key IP có thể
+       sai sau proxy Railway (làm yếu mitigation enum register + F2). Cần Ken xử lý khi deploy.
+
+[11:48] AGENT/@trim-test-skeptic — 16/16 test auth-security đều LOAD-BEARING. Xác nhận:
+  - #10 (hai nhánh giống nhau): so sánh CHÉO hai response (status+message) + pin tuyệt đối 401/
+    "Invalid credentials" — khớp mutation no-user→404 tôi đã chạy (FAIL đúng).
+  - #11 (timing-safe): compare gọi đúng 1 lần với DUMMY_HASH; khôi phục early-return → 0 lần → FAIL.
+  - #13/#14/#15 lockout: bỏ lockout → lần 6 thành 200 → FAIL; #15 chứng minh cửa sổ TỰ HẾT
+    (lockUntil quá khứ → isLocked=false); #14 là test DUY NHẤT pin reset-đếm.
+  - #16 duplicate: assert ĐÚNG message "This email is already registered" (không chỉ status) → nếu
+    bỏ app-check, rơi vào E11000 "Email already exists" → FAIL. Tránh đúng bẫy two-layer.
+  Gap gia cố (đã áp):
+  - #11: thêm assert tham số 2 của compare là HASH BCRYPT thật (/^\$2[aby]\$\d{2}\$/) — chặn hồi
+    quy về dummy rỗng/plaintext/rẻ (đóng đúng invariant timing-safety).
+  - #2,#6,#7,#8: thêm assert message === 'Validation failed' (fail đúng lý do, không phải 400 bất kỳ).
+  Full suite sau gia cố: 194 passed, 0 fail.
+
+[11:52] OK — TASK 8 commit: `508e96d feat(auth): input validation (zod), password rules,
+  generic login, account lockout, anti-enumeration`. .env KHÔNG trong staged (verify). Commit
+  body ghi rõ DEFER (register full anti-enum → GĐ1d) + security LOW/INFO deferred.
+
+═══════════════════════════════════════════════════════════════════════════════
+BÁO CÁO CUỐI — RUNBOOK 003 (Giai đoạn 1c)
+═══════════════════════════════════════════════════════════════════════════════
+
+ĐÃ XONG (bằng chứng: số + tên test):
+- TASK 0 baseline 178/0. TASK 2 read-first → Ken chốt (zod: dùng; login giữ "Invalid
+  credentials" + vá timing; register anti-enum hướng a).
+- TASK 3 validation zod: middleware/validate.js + validation/schemas.js áp register, login,
+  meals, activities, weights, quicklog POST. Test: "register thiếu field/sai email → 400",
+  "login thiếu password → 400", "message KHÔNG echo password", "body hợp lệ → 201".
+- TASK 4 password strength (≥8 + chữ + số): test "<8 / thiếu số / thiếu chữ → 400", "đạt → 201".
+- TASK 5 login generic + timing-safe: LUÔN bcrypt.compare (DUMMY_HASH cùng cost). Test
+  "sai email VÀ sai mật khẩu → CÙNG message+status" (load-bearing, mutation no-user→404 FAIL);
+  "email không tồn tại VẪN gọi compare với hash bcrypt thật" (gia cố regex $2[aby]).
+- TASK 6 lockout: failedLoginAttempts + lockUntil (Date thường, KHÔNG TTL). Test "5 sai → khoá,
+  lần 6 dù đúng vẫn 401 generic + lockUntil tương lai", "login đúng reset đếm", "lockUntil quá
+  khứ → login lại được (cửa sổ tự hết)". Register anti-enum (a): test "trùng → 400 'This email
+  is already registered'" (không rơi vào E11000 handler).
+- TASK 7 checkpoint: @trim-test-skeptic (16/16 LOAD-BEARING, đã gia cố #11 + #2/#6/#7/#8);
+  @trim-security (KHÔNG finding chặn; F1/F2/F3 LOW/INFO defer).
+- FULL SUITE CUỐI: Test Suites 11 passed; Tests 194 passed, 0 fail (178 cũ + 16 mới).
+
+ĐÃ PARK / DEFER (cần Ken):
+- Register anti-enum ĐẦY ĐỦ (giấu tồn tại) → GĐ1d, cần email verification. Hiện dùng hướng (a):
+  message thân thiện + rate limit. (Ken đã chốt.)
+- Security F1 (LOW): residual write-timing enum (user.save() chỉ ở nhánh sai-mật-khẩu). Defer.
+- Security F2 (LOW): account-lockout DoS self-healing. Defer.
+- Security F3 (INFO, pre-existing): app.js chưa set 'trust proxy' → rate-limit key IP sai sau
+  proxy Railway. Nên set trước khi tin vào authLimiter trên prod. Ngoài diff GĐ1c.
+
+QUYẾT ĐỊNH ĐÃ TỰ LÀM (Ken duyệt lại):
+- Giữ validation thủ công cũ ở write routes song song zod (defense-in-depth) thay vì gỡ (giảm rủi ro).
+- Áp zod chỉ cho route trong scope runbook (auth + 4 write route); KHÔNG đụng templates (ngoài scope,
+  có test assert message riêng).
+- Gia cố 2 test theo khuyến nghị test-skeptic (đóng invariant timing-safety + fail đúng lý do).
+- LƯU Ý message login: GOAL nêu "Invalid email or password" nhưng Ken CHỐT giữ "Invalid credentials"
+  (đã generic, không lộ tồn tại). Bản chất anti-enum (2 nhánh giống hệt) ĐẠT; chỉ khác chữ theo ý Ken.
+
+GOAL — từng dòng:
+[x] Route auth + route ghi chính validate input, 400 + message an toàn khi malformed.
+[x] Register password mạnh (≥8 + chữ + số), có test.
+[x] Login generic cho CẢ sai email LẪN sai mật khẩu (cùng message+status), timing-safe, có test
+    chứng minh 2 nhánh giống nhau. (Message = "Invalid credentials" theo Ken, không phải chữ trong GOAL.)
+[x] Khoá tài khoản sau 5 lần sai trong cửa sổ 15min, có test.
+[x] Register không rò qua global 400 handler (app-check trả friendly 400 trước E11000; test #16).
+[x] Rate limit xác nhận áp cho route auth (authLimiter 5/15min /api/auth, gồm register).
+[x] Toàn bộ test xanh (194, 0 fail); @trim-security KHÔNG finding chặn.
+[x] Đã commit (508e96d); .env KHÔNG trong git.
+
+Bằng chứng số: `Test Suites: 11 passed | Tests: 194 passed, 194 total`. Commit 508e96d.

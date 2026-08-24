@@ -22,6 +22,8 @@ const { getTodayInTz, getMealTypeInTz, isValidDateString } = require('../utils/d
 const { parseMealText, parseActivityText } = require('../utils/parseText');
 const { calcTotals, calcSummary, syncCurrentStatsWeight } = require('../utils/logHelpers');
 const { calculateBMI } = require('../utils/bmr');
+const validate = require('../middleware/validate');
+const { quicklogSchema } = require('../validation/schemas');
 
 const router = express.Router();
 router.use(authenticate);
@@ -34,7 +36,7 @@ const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const duplicateResponse = (res, kind, doc) =>
   res.status(200).json({ ok: true, duplicate: true, kind, created: doc });
 
-router.post('/', async (req, res, next) => {
+router.post('/', validate(quicklogSchema), async (req, res, next) => {
   try {
     const { kind, text, value, clientId, origin, mealType, date } = req.body;
 

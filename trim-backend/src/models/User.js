@@ -82,6 +82,19 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // ── Chống brute-force login (per-account lockout) ──────────────────────────
+  // Số lần login sai LIÊN TIẾP. Reset về 0 khi login đúng. KHÔNG index/TTL.
+  failedLoginAttempts: {
+    type: Number,
+    default: 0,
+  },
+  // Thời điểm hết khoá. Khi Date.now() < lockUntil => tài khoản đang bị khoá.
+  // Field Date THƯỜNG, KHÔNG có `expires` — đây KHÔNG phải TTL, chỉ là mốc thời gian
+  // đọc bằng code. (Tránh lặp lại sự cố TTL xoá document.)
+  lockUntil: {
+    type: Date,
+    default: null,
+  },
   refreshTokens: [{
     token: String,
     createdAt: {

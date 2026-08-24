@@ -1,5 +1,7 @@
 const express = require('express');
 const authenticate = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { mealSchema } = require('../validation/schemas');
 const MealLog = require('../models/MealLog');
 const { getTodayInTz } = require('../utils/date');
 const { parseMealText } = require('../utils/parseText');
@@ -158,7 +160,7 @@ router.post('/parse-text', async (req, res, next) => {
 });
 
 // POST /api/meals
-router.post('/', async (req, res, next) => {
+router.post('/', validate(mealSchema), async (req, res, next) => {
   try {
     const { date, mealType, items, notes } = req.body;
 

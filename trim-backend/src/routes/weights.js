@@ -1,5 +1,7 @@
 const express = require('express');
 const authenticate = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { weightSchema } = require('../validation/schemas');
 const WeightLog = require('../models/WeightLog');
 const User = require('../models/User');
 const { calculateBMI } = require('../utils/bmr');
@@ -10,7 +12,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // POST /api/weights
-router.post('/', async (req, res, next) => {
+router.post('/', validate(weightSchema), async (req, res, next) => {
   try {
     const { weight, date, notes } = req.body;
 

@@ -2,24 +2,36 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const validate = require('../middleware/validate');
+const { registerSchema, loginSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
+// Số vòng bcrypt (test rẻ, prod chậm để chống brute-force offline).
+const BCRYPT_ROUNDS = process.env.NODE_ENV === 'test' ? 1 : 12;
+
+// Ngưỡng khoá tài khoản. Có thể chỉnh qua env; mặc định 5 lần / 15 phút.
+const MAX_LOGIN_ATTEMPTS = parseInt(process.env.MAX_LOGIN_ATTEMPTS, 10) || 5;
+const LOCK_WINDOW_MS = (parseInt(process.env.LOCK_WINDOW_MINUTES, 10) || 15) * 60 * 1000;
+
+// Hash GIẢ cố định, cùng cost với hash thật, để bcrypt.compare luôn tốn thời gian
+// tương đương kể cả khi email không tồn tại → không lộ tồn tại tài khoản qua timing.
+const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy-password', BCRYPT_ROUNDS);
+
 // POST /api/auth/register
-router.post('/register', async (req, res, next) => {
+router.post('/register', validate(registerSchema, { replace: true }), async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'name, email, and password are required' });
-    }
-
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      // Hướng anti-enum (a) đã chốt: giữ message thân thiện cho UX. Chống enum ĐẦY ĐỦ
+      // (giấu tồn tại) DEFER sang GĐ1d (cần email verification). Mitigation hiện tại =
+      // rate limit authLimiter 5/15min áp /api/auth.
+      return res.status(400).json({ message: 'This email is already registered' });
     }
 
-    const bcryptRounds = process.env.NODE_ENV === 'test' ? 1 : 12;
+    const bcryptRounds = BCRYPT_ROUNDS;
     const salt = await bcrypt.genSalt(bcryptRounds);
     const passwordHash = await bcrypt.hash(password, salt);
 
@@ -43,18 +55,38 @@ router.post('/register', async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res, next) => {
+router.post('/login', validate(loginSchema, { replace: true }), async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
+    const now = Date.now();
+    const isLocked = !!(user && user.lockUntil && user.lockUntil.getTime() > now);
+
+    // TIMING-SAFE: LUÔN chạy bcrypt.compare. Không có user → so với DUMMY_HASH (cùng cost)
+    // nên thời gian phản hồi nhánh "sai email" == nhánh "sai mật khẩu".
+    const passwordOk = await bcrypt.compare(password, user ? user.passwordHash : DUMMY_HASH);
+
+    // Thất bại nếu: không có user, HOẶC đang khoá, HOẶC sai mật khẩu.
+    // Mọi nhánh thất bại trả GIỐNG HỆT nhau (401 + "Invalid credentials") — không lộ
+    // tồn tại tài khoản, không lộ trạng thái khoá.
+    if (!user || isLocked || !passwordOk) {
+      // Chỉ đếm khi user thật, KHÔNG đang khoá, và sai mật khẩu (đúng nghĩa "login sai").
+      if (user && !isLocked && !passwordOk) {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+        if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
+          user.lockUntil = new Date(now + LOCK_WINDOW_MS);
+          user.failedLoginAttempts = 0; // reset đếm; sau khi hết khoá được thử lại từ đầu
+        }
+        await user.save();
+      }
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    // Thành công: reset mọi trạng thái khoá nếu có.
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
     }
 
     const accessToken = generateAccessToken({ userId: user._id });

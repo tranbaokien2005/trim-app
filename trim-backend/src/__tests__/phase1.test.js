@@ -125,7 +125,7 @@ describe('Auth', () => {
   test('register rejects duplicate email', async () => {
     const res = await request(app).post('/api/auth/register').send(USER_A);
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/already exists/i);
+    expect(res.body.message).toMatch(/already registered/i);
   });
 
   test('login with correct credentials returns tokens', async () => {
