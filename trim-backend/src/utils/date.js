@@ -38,4 +38,36 @@ function isValidDateString(s) {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
-module.exports = { getTodayInTz, subtractDays, isValidDateString };
+
+/**
+ * Suy ra bữa ăn ("breakfast" | "lunch" | "dinner" | "snack") theo giờ ĐỊA PHƯƠNG
+ * của user. Dùng cho những đường log không gửi kèm mealType (deep link, Shortcut).
+ *
+ * Buckets giống hệt ChatInputScreen phía app — đừng để hai nơi lệch nhau.
+ * timezone thiếu/rỗng/không hợp lệ => UTC, KHÔNG ném lỗi (giống getTodayInTz).
+ * now: truyền vào để test không phụ thuộc giờ chạy máy.
+ */
+function getMealTypeInTz(timezone, now = new Date()) {
+  const tz = timezone || 'UTC';
+  let hour;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone:  tz,
+      hour:      '2-digit',
+      hourCycle: 'h23',
+    }).format(now);
+    hour = parseInt(parts, 10);
+  } catch (_) {
+    hour = NaN;
+  }
+  if (!Number.isInteger(hour)) hour = now.getUTCHours();
+  hour = hour % 24; // vài phiên bản ICU trả 24 cho nửa đêm
+
+  if (hour >= 6  && hour <= 10) return 'breakfast';
+  if (hour >= 11 && hour <= 14) return 'lunch';
+  if (hour >= 15 && hour <= 17) return 'snack';
+  if (hour >= 18 && hour <= 22) return 'dinner';
+  return 'snack';
+}
+
+module.exports = { getTodayInTz, getMealTypeInTz, subtractDays, isValidDateString };

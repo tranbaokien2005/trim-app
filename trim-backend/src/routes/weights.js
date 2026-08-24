@@ -3,6 +3,7 @@ const authenticate = require('../middleware/auth');
 const WeightLog = require('../models/WeightLog');
 const User = require('../models/User');
 const { calculateBMI } = require('../utils/bmr');
+const { syncCurrentStatsWeight } = require('../utils/logHelpers');
 
 const router = express.Router();
 router.use(authenticate);
@@ -24,11 +25,7 @@ router.post('/', async (req, res, next) => {
     const log = new WeightLog({ user: req.user._id, weight, date: logDate, bmi, notes, source: 'manual' });
     await log.save();
 
-    await User.findByIdAndUpdate(req.user._id, {
-      'currentStats.weight': weight,
-      'currentStats.bmi': bmi,
-      'currentStats.weightUpdatedAt': new Date(),
-    });
+    await syncCurrentStatsWeight(req.user._id, weight, bmi);
 
     res.status(201).json(log);
   } catch (error) {

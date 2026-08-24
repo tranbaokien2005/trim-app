@@ -14,12 +14,7 @@ const toTitleCase = (str) => {
   return str.toLowerCase().split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
-const calcTotals = (items) => ({
-  calories: items.reduce((s, i) => s + (i.calories || 0), 0),
-  protein: items.reduce((s, i) => s + (i.protein || 0), 0),
-  carbs: items.reduce((s, i) => s + (i.carbs || 0), 0),
-  fat: items.reduce((s, i) => s + (i.fat || 0), 0),
-});
+const { calcTotals } = require('../utils/logHelpers');
 
 const FALLBACK_FOODS = [
   { name: 'Chicken Breast (grilled)', calories: 165, protein: 31, carbs: 0,  fat: 3.6, servingQty: 100, servingSize: 'g', type: 'common' },

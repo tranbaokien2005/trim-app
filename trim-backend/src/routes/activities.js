@@ -7,10 +7,7 @@ const { parseActivityText } = require('../utils/parseText');
 const router = express.Router();
 router.use(authenticate);
 
-const calcSummary = (entries) => ({
-  totalCaloriesBurned: entries.reduce((s, e) => s + (e.caloriesBurned || 0), 0),
-  totalActiveMinutes: entries.reduce((s, e) => s + (e.durationMinutes || 0), 0),
-});
+const { calcSummary } = require('../utils/logHelpers');
 
 // POST /api/activities/parse-text  — must be before /:id routes
 router.post('/parse-text', async (req, res, next) => {

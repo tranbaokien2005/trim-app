@@ -366,7 +366,7 @@ const buildTemplateName = (items) => {
   return `${items[0].name} + ${items.length - 1} more`;
 };
 
-const MealsTab = ({ today, refreshTrigger, navigation }) => {
+const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed }) => {
   const [meals, setMeals]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -448,6 +448,15 @@ const MealsTab = ({ today, refreshTrigger, navigation }) => {
 
   useEffect(() => { load(); }, [load, refreshTrigger]);
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  // Deep link ghi hụt -> mở sẵn form và điền tên món, để user không phải gõ lại.
+  useEffect(() => {
+    if (!draft || !draft.text) return;
+    setShowForm(true);
+    setFoodName(draft.text);
+    setFormError('');
+    if (onDraftConsumed) onDraftConsumed();
+  }, [draft, onDraftConsumed]);
 
   const onRefresh = () => { setRefreshing(true); load(true); };
 
@@ -2344,6 +2353,12 @@ const LogScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.initialTab]);
 
+  // Bản nháp do deep link đẩy sang khi POST /quicklog thất bại.
+  const quickLogDraft = route?.params?.quickLogDraft;
+  const clearQuickLogDraft = useCallback(() => {
+    navigation.setParams({ quickLogDraft: undefined });
+  }, [navigation]);
+
   useFocusEffect(useCallback(() => {
     setRefreshTrigger((n) => n + 1);
   }, []));
@@ -2373,7 +2388,15 @@ const LogScreen = ({ navigation, route }) => {
 
       {/* Tab content */}
       <View style={{ flex: 1 }}>
-        {activeTab === 'meals' && <MealsTab today={today} refreshTrigger={refreshTrigger} navigation={navigation} />}
+        {activeTab === 'meals' && (
+          <MealsTab
+            today={today}
+            refreshTrigger={refreshTrigger}
+            navigation={navigation}
+            draft={quickLogDraft && quickLogDraft.kind === 'meal' ? quickLogDraft : null}
+            onDraftConsumed={clearQuickLogDraft}
+          />
+        )}
         {activeTab === 'activity' && <ActivityTab today={today} refreshTrigger={refreshTrigger} navigation={navigation} />}
         {activeTab === 'weight' && <WeightTab refreshTrigger={refreshTrigger} />}
       </View>

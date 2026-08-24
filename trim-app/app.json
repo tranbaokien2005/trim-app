@@ -2,6 +2,7 @@
   "expo": {
     "name": "trim-app",
     "slug": "trim-app",
+    "scheme": "trim",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/logo.png",
