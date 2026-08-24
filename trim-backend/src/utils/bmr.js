@@ -10,6 +10,13 @@ const BASELINE_RATIO = 0.2;
 // 1 kg mỡ ≈ 7700 kcal
 const CALORIES_PER_KG = 7700;
 
+// ── Ngưỡng AN TOÀN (guideline 1.4.1 — app không khuyến khích hành vi hại sức khoẻ) ──
+// Hằng số tập trung ở đây, KHÔNG rải magic number trong route.
+const SAFE_MIN_CALORIES_FEMALE = 1200; // kcal/ngày tối thiểu an toàn (nữ)
+const SAFE_MIN_CALORIES_MALE = 1500;   // kcal/ngày tối thiểu an toàn (nam)
+const MIN_HEALTHY_BMI = 18.5;          // BMI khoẻ mạnh tối thiểu
+const MAX_WEEKLY_LOSS_KG = 1.0;        // tốc độ giảm cân tối đa an toàn (kg/tuần)
+
 /**
  * Mifflin-St Jeor.
  * TRẢ VỀ SỐ CHƯA LÀM TRÒN — cố ý, để nơi gọi tự quyết định làm tròn.
@@ -82,6 +89,10 @@ const calculateBMRFromUser = (user) => {
 module.exports = {
   BASELINE_RATIO,
   CALORIES_PER_KG,
+  SAFE_MIN_CALORIES_FEMALE,
+  SAFE_MIN_CALORIES_MALE,
+  MIN_HEALTHY_BMI,
+  MAX_WEEKLY_LOSS_KG,
   calculateBMR,
   calculateBMI,
   calculateAge,

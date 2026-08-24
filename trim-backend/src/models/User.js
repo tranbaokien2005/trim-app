@@ -82,6 +82,12 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Đồng ý gửi dữ liệu cho OpenAI để ước tính dinh dưỡng (guideline 5.1.2(i)).
+  // Mặc định FALSE — chưa đồng ý thì endpoint AI trả 403, KHÔNG gọi OpenAI.
+  aiConsent: {
+    granted: { type: Boolean, default: false },
+    grantedAt: { type: Date, default: null },
+  },
   // ── Chống brute-force login (per-account lockout) ──────────────────────────
   // Số lần login sai LIÊN TIẾP. Reset về 0 khi login đúng. KHÔNG index/TTL.
   failedLoginAttempts: {

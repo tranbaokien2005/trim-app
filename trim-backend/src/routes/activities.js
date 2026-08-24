@@ -7,12 +7,13 @@ const { getTodayInTz } = require('../utils/date');
 const { parseActivityText } = require('../utils/parseText');
 
 const router = express.Router();
+const requireAiConsent = require('../middleware/requireAiConsent');
 router.use(authenticate);
 
 const { calcSummary } = require('../utils/logHelpers');
 
 // POST /api/activities/parse-text  — must be before /:id routes
-router.post('/parse-text', async (req, res, next) => {
+router.post('/parse-text', requireAiConsent, async (req, res, next) => {
   try {
     const { text, date } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ message: 'text is required' });

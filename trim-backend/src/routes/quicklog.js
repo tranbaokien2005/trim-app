@@ -75,6 +75,15 @@ router.post('/', validate(quicklogSchema), async (req, res, next) => {
     const timezone = req.user.profile?.timezone;
     const day = date || getTodayInTz(timezone);
 
+    // Consent gate (guideline 5.1.2(i)) — chỉ meal/activity mới gọi OpenAI (parseText).
+    // weight KHÔNG gọi AI nên KHÔNG cần consent. Đặt sau dedupe (bản trùng trả sớm, không chạm AI).
+    if ((kind === 'meal' || kind === 'activity') && !req.user.aiConsent?.granted) {
+      return res.status(403).json({
+        code: 'AI_CONSENT_REQUIRED',
+        message: 'AI analysis requires your consent to send data to OpenAI.',
+      });
+    }
+
     let doc;
     if (kind === 'meal') {
       let items;

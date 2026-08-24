@@ -13,6 +13,7 @@ const {
 } = require('../utils/bmr');
 const { getTodayInTz } = require('../utils/date');
 const { syncCurrentStatsBmr } = require('../utils/logHelpers');
+const { checkGoalSafety } = require('../utils/goalSafety');
 
 const router = express.Router();
 
@@ -65,6 +66,21 @@ router.post('/me/complete-profile', authenticate, async (req, res, next) => {
     const { profile, weight, goal } = req.body;
     const userId = req.user._id;
 
+    // 0. SAFETY GUARD (guideline 1.4.1) — chạy TRƯỚC mọi ghi DB để reject sạch, không
+    //    để lại profile/weightlog mồ côi. Dùng bmr/tdee tính từ chính body.
+    const guardAge = calculateAge(profile.dateOfBirth);
+    const guardBmr = Math.round(calculateBMR(weight, profile.height, guardAge, profile.gender));
+    const guardTdee = calculateTDEE(guardBmr);
+    const unsafe = checkGoalSafety({
+      goalType: goal.type,
+      weeklyRate: goal.weeklyRate,
+      targetWeight: goal.targetWeight,
+      height: profile.height,
+      gender: profile.gender,
+      tdee: guardTdee,
+    });
+    if (unsafe) return res.status(400).json({ message: unsafe.message });
+
     // 1. Update user profile
     await User.findByIdAndUpdate(userId, {
       profile: {
@@ -87,11 +103,10 @@ router.post('/me/complete-profile', authenticate, async (req, res, next) => {
       source: 'manual',
     });
 
-    // 3. Calculate BMR and daily calorie target
-    const age = calculateAge(profile.dateOfBirth);
-    const bmr = Math.round(calculateBMR(weight, profile.height, age, profile.gender));
+    // 3. Daily calorie target — tái dùng bmr/tdee đã tính ở guard (không tính lại).
+    const bmr = guardBmr;
     const baseline = calculateBaseline(bmr);
-    const tdee = calculateTDEE(bmr); // no logged activity on day 0
+    const tdee = guardTdee;
     const dailyCalorieTarget = calculateDailyTarget(tdee, goal.type, goal.weeklyRate);
 
     // 4. Set currentStats and push new goal
@@ -139,6 +154,18 @@ router.put('/me/goal', authenticate, async (req, res, next) => {
 
     const bmr = Math.round(calculateBMR(weight, height, age, gender));
     const tdee = calculateTDEE(bmr);
+
+    // SAFETY GUARD (guideline 1.4.1) — reject TRƯỚC khi vô hiệu goal cũ / push goal mới.
+    const unsafe = checkGoalSafety({
+      goalType: type,
+      weeklyRate,
+      targetWeight,
+      height,
+      gender,
+      tdee,
+    });
+    if (unsafe) return res.status(400).json({ message: unsafe.message });
+
     const dailyCalorieTarget = calculateDailyTarget(tdee, type, weeklyRate);
 
     await User.findByIdAndUpdate(userId, {
@@ -204,6 +231,27 @@ router.delete('/me', authenticate, async (req, res, next) => {
     const deleted = await deleteUserData(user._id, { deleteUser: true });
 
     res.json({ message: 'Account deleted', deleted });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/users/ai-consent — user đồng ý gửi dữ liệu cho OpenAI (guideline 5.1.2(i)).
+// Idempotent: gọi nhiều lần vẫn granted=true; giữ grantedAt lần đầu.
+router.post('/ai-consent', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    if (!req.user.aiConsent?.granted) {
+      await User.findByIdAndUpdate(userId, {
+        'aiConsent.granted': true,
+        'aiConsent.grantedAt': new Date(),
+      });
+    }
+    const fresh = await User.findById(userId);
+    res.json({
+      granted: fresh.aiConsent.granted,
+      grantedAt: fresh.aiConsent.grantedAt,
+    });
   } catch (error) {
     next(error);
   }

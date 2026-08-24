@@ -864,3 +864,60 @@ GOAL tổng — từng dòng:
 [x] Không .env; TTL CHỈ trên RefreshToken.expiresAt, không ở đâu khác (security xác nhận).
 
 Bằng chứng: `Test Suites: 13 passed | Tests: 203 passed`. Commits: e69f13e (P1), 30d485d (P2).
+
+═══════════════════════════════════════════════════════════════════════════════
+RUNBOOK 005 — GĐ3 Safety & Consent
+═══════════════════════════════════════════════════════════════════════════════
+
+[14:00] START — Phase 1 backend trước. P1.0 baseline 203/0, tree sạch.
+        (TRIM_LEGAL_GD3.html không có trong repo — nhưng copy Phase 2 đã inline trong runbook, đủ dùng.)
+
+[14:20] OK — P1.1 read-first: 2 endpoint đặt goal (POST /me/complete-profile users.js:63; PUT /me/goal
+  users.js:130), cả hai dùng calculateDailyTarget(tdee, type, weeklyRate). bmr.js: calculateBMI(w,h),
+  calculateDailyTarget(tdee,type,rate), calculateBMRFromUser. User.profile.gender (enum male/female/
+  other). CHƯA có aiConsent. OpenAI qua parseText.js: meals /parse-text, activities /parse-text,
+  quicklog (kind meal/activity). meals/activities có router.use(authenticate).
+
+[14:22] OK — P1.2 unsafe-goal guards:
+  - Hằng số ở bmr.js: SAFE_MIN_CALORIES_FEMALE=1200, MALE=1500, MIN_HEALTHY_BMI=18.5, MAX_WEEKLY_LOSS_KG=1.0.
+  - utils/goalSafety.js checkGoalSafety() (dùng lại bmr.js): rate>1.0 → msg tốc độ; dailyTarget<minCal
+    (nam 1500/nữ+other 1200) → msg calo; targetBMI<18.5 → msg BMI. 3 message ĐÚNG chuỗi runbook.
+  - Wire vào complete-profile (TRƯỚC mọi write — reject sạch, không để profile/weightlog mồ côi) +
+    PUT /me/goal (trước khi vô hiệu goal cũ). Tái dùng bmr/tdee đã tính, không tính lại.
+  - QUYẾT ĐỊNH: 'other' gender dùng ngưỡng calo nữ (1200, thấp hơn) tránh over-reject; guard vẫn chặn
+    mọi target thực sự <1200 cho mọi giới.
+  - Test safety-guards.test.js: 6 unit checkGoalSafety (deterministic, truyền tdee, không phụ thuộc
+    ngày) + 3 integration complete-profile (rate→400+msg+không tạo goal; BMI→400+msg; safe→200).
+  - MUTATION: tắt guard calo (!DISABLED) → 2 test calo FAIL (message→undefined). Khôi phục, xanh lại.
+
+[14:24] OK — P1.3 AI consent gate:
+  - User schema: aiConsent { granted:Boolean default false, grantedAt:Date default null }. KHÔNG TTL.
+  - POST /api/users/ai-consent (auth, idempotent): granted=true, grantedAt=now (giữ lần đầu).
+  - middleware/requireAiConsent.js: chưa granted → 403 {code:'AI_CONSENT_REQUIRED'}, KHÔNG next.
+    Áp: meals /parse-text, activities /parse-text. quicklog: inline chỉ cho kind meal/activity (weight
+    không gọi AI → không cần consent), đặt SAU dedupe.
+  - Test: chưa consent + parse-text → 403 AI_CONSENT_REQUIRED + parseMealText KHÔNG được gọi (mock
+    assert not called); sau POST consent → parse-text qua (mock); consent idempotent grantedAt không
+    đổi; quicklog weight không cần consent; log tay POST /meals không cần consent (parseMealText not called).
+  - Sửa quicklog.test.js: grant aiConsent cho userA/userB trong beforeAll (test kiểm cơ chế, không phải consent).
+  - safety-guards.test.js: 14 test. Full suite: 217 passed, 0 fail.
+
+[14:40] AGENT/@trim-security Phase 1 — KHÔNG finding chặn. Guard là if server-side (không prompt),
+  cả 2 goal-write site (complete-profile users.js:70-83 + PUT /me/goal:158-167) đều guard TRƯỚC write
+  (grep $push goals chỉ 2 nơi, đều covered); mọi đường OpenAI (parseText.js là call duy nhất) đều gated
+  (meals/activities middleware + quicklog inline) — KHÔNG bypass; 403 không next. aiConsent.grantedAt
+  Date thường KHÔNG TTL; message cố định không leak; consent chỉ set cho req.user._id (không set hộ user
+  khác). 2 lưu ý non-blocking: complete-profile không null-check body (pre-existing, 500 nếu malformed);
+  quicklog lặp gate inline (maintainability). Defer.
+
+[14:42] AGENT/@trim-test-skeptic Phase 1 — 14/14 LOAD-BEARING (mutation A-G xác nhận): guard rate/calo/
+  BMI độc lập (mutation B: tắt BMI → integration BMI thành 200, calo KHÔNG preempt); message assert đúng
+  CHUỖI đầy đủ (toBe, không toBeTruthy); clean-reject invariant (onboardingCompleted false) load-bearing
+  (mutation G); consent not-called + over-application (weight/manual không cần consent) load-bearing.
+  Gap đã GIA CỐ:
+  - Test idempotent trước diff 2 clock → có thể false-pass nếu cùng ms. Sửa: spy findByIdAndUpdate,
+    assert lần consent 2 KHÔNG gọi update (idempotent thật). 
+  - Guard calo trước chỉ unit → thêm integration test qua complete-profile (calo<1200 → 400 + MSG_CAL
+    + không tạo goal). safety-guards 15 test. Full suite 218 passed.
+
+[14:44] OK — commit Phase 1.

@@ -7,6 +7,7 @@ const { getTodayInTz } = require('../utils/date');
 const { parseMealText } = require('../utils/parseText');
 
 const router = express.Router();
+const requireAiConsent = require('../middleware/requireAiConsent');
 router.use(authenticate);
 
 const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -137,7 +138,7 @@ router.post('/search/nutrients', async (req, res, next) => {
 });
 
 // POST /api/meals/parse-text
-router.post('/parse-text', async (req, res, next) => {
+router.post('/parse-text', requireAiConsent, async (req, res, next) => {
   try {
     const { text, date } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ message: 'text is required' });

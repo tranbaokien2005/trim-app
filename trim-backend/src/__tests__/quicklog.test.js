@@ -18,6 +18,7 @@ const { parseMealText } = require('../utils/parseText');
 const MealLog = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
 const WeightLog = require('../models/WeightLog');
+const User = require('../models/User');
 
 let mongod;
 let tokenA, userA;
@@ -61,6 +62,13 @@ beforeAll(async () => {
   expect(b.status).toBe(201);
   tokenB = b.body.accessToken;
   userB = b.body.user._id;
+
+  // Các test quicklog kiểm CƠ CHẾ (dedupe/origin/kind), không phải consent gate.
+  // Grant aiConsent để meal/activity quicklog qua được gate AI (guideline 5.1.2(i)).
+  await User.updateMany(
+    { _id: { $in: [userA, userB] } },
+    { $set: { 'aiConsent.granted': true, 'aiConsent.grantedAt': new Date() } }
+  );
 });
 
 afterAll(async () => {
