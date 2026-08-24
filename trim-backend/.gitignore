@@ -5,3 +5,6 @@ node_modules/
 
 # user data backups — DO NOT commit
 backup-weightlogs-*.json
+
+# user backups — DO NOT commit
+backup-users-*.json
