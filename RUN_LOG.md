@@ -1104,4 +1104,4 @@ GOAL — từng dòng:
 [x] Password reset: backend + FE đầy đủ, TTL đúng (GATE pass 2 lần), nút ẩn ở v1 (flag off), test + mutation xanh.
 [x] Suite 226 (218 + 8), 0 fail · không .env · không dep mới · TTL chỉ ở PasswordResetToken.expiresAt (+ RefreshToken có sẵn).
 
-Bằng chứng: `Test Suites: 15 passed | Tests: 226 passed`. Commits: 85e3ee1 (P1), 407756b (P2), c34d7c2.
+Bằng chứng: `Test Suites: 15 passed | Tests: 226 passed`. Commits: 85e3ee1 (P1), 407756b (P2), Phase 3 HEAD.
