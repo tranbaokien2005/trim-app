@@ -3,6 +3,7 @@ const ActivityLog  = require('../models/ActivityLog');
 const WeightLog    = require('../models/WeightLog');
 const Template     = require('../models/Template');
 const RefreshToken = require('../models/RefreshToken');
+const PasswordResetToken = require('../models/PasswordResetToken');
 const User         = require('../models/User');
 
 /**
@@ -21,6 +22,7 @@ const OWNED_COLLECTIONS = [
   { name: 'weights',    model: WeightLog },
   { name: 'templates',  model: Template },
   { name: 'refreshTokens', model: RefreshToken },
+  { name: 'passwordResetTokens', model: PasswordResetToken },
 ];
 
 const deleteUserData = async (userId, { deleteUser = true } = {}) => {

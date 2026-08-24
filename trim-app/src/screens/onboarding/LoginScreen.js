@@ -198,10 +198,13 @@ const LoginScreen = ({ navigation }) => {
               {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
             </View>
 
-            {/* Forgot password */}
-            <TouchableOpacity style={styles.forgotWrap}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
+            {/* Forgot password — CHỈ hiện khi flag bật (RUNBOOK 006 P3.2). Mặc định ẩn:
+                không có nút chết ở v1. Bật bằng EXPO_PUBLIC_PASSWORD_RESET=true khi Ken cấu hình email. */}
+            {process.env.EXPO_PUBLIC_PASSWORD_RESET === 'true' && (
+              <TouchableOpacity style={styles.forgotWrap} onPress={() => navigation.navigate('ForgotPassword')}>
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Sign In button */}
             <TouchableOpacity

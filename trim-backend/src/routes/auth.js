@@ -6,7 +6,13 @@ const {
   issueRefreshToken, rotateRefreshToken, revokeRefreshToken, RefreshError,
 } = require('../utils/refreshTokens');
 const validate = require('../middleware/validate');
-const { registerSchema, loginSchema } = require('../validation/schemas');
+const {
+  registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema,
+} = require('../validation/schemas');
+const crypto = require('crypto');
+const PasswordResetToken = require('../models/PasswordResetToken');
+const { revokeAllForUser } = require('../utils/refreshTokens');
+const { sendPasswordResetEmail, isConfigured } = require('../services/email');
 
 const router = express.Router();
 
@@ -145,6 +151,64 @@ router.post('/logout', async (req, res, next) => {
     await revokeRefreshToken(refreshToken);
 
     res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Hash token reset — SHA-256 (token là chuỗi ngẫu nhiên entropy cao, không phải password).
+const RESET_TTL_MS = 15 * 60 * 1000; // 15 phút
+const hashResetToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
+
+// POST /api/auth/forgot-password — LUÔN 200 generic (anti-enumeration).
+router.post('/forgot-password', validate(forgotPasswordSchema, { replace: true }), async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    // Chỉ thực sự gửi khi user tồn tại VÀ email đã cấu hình. Nhưng response LUÔN giống nhau.
+    if (isConfigured()) {
+      const user = await User.findOne({ email });
+      if (user) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        await PasswordResetToken.create({
+          user: user._id,
+          tokenHash: hashResetToken(rawToken),
+          expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        });
+        await sendPasswordResetEmail(user.email, rawToken);
+      }
+    }
+    // Không lộ tồn tại tài khoản, không lộ email đã cấu hình hay chưa.
+    return res.status(200).json({ message: 'If an account exists, a reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/reset-password — đổi password bằng token thô.
+router.post('/reset-password', validate(resetPasswordSchema, { replace: true }), async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    const record = await PasswordResetToken.findOne({ tokenHash: hashResetToken(token) });
+
+    // Token sai HOẶC hết hạn → 400 generic (không lộ cái nào).
+    if (!record || record.expiresAt.getTime() <= Date.now()) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const salt = await bcrypt.genSalt(BCRYPT_ROUNDS);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+    await User.findByIdAndUpdate(record.user, {
+      passwordHash,
+      failedLoginAttempts: 0,
+      lockUntil: null,
+    });
+
+    // Dùng token một lần: xoá token này + mọi token reset khác của user.
+    await PasswordResetToken.deleteMany({ user: record.user });
+    // Buộc đăng nhập lại mọi thiết bị (mật khẩu đã đổi).
+    await revokeAllForUser(record.user);
+
+    return res.json({ message: 'Password has been reset. Please log in with your new password.' });
   } catch (error) {
     next(error);
   }

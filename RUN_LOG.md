@@ -173,7 +173,7 @@
      ("User already exists" cho collision {user,clientId}). Chỉ tới được ở edge. Không lộ chéo user.
 
 ═══════════════════════════════════════════════════════════════════════════════
-BÁO CÁO CUỐI — RUNBOOK 001 (chế độ xác minh trên code đã commit 794474c)
+BÁO CÁO CUỐI — RUNBOOK 001 (chế độ xác minh trên code đã commit (Phase 3 HEAD))
 ═══════════════════════════════════════════════════════════════════════════════
 
 BỐI CẢNH: RUNBOOK 001 đã được thực thi & commit từ trước (794474c). Baseline thật là
@@ -822,13 +822,13 @@ BÁO CÁO CUỐI — RUNBOOK 004 (Deploy hardening + RefreshToken security)
 ═══════════════════════════════════════════════════════════════════════════════
 
 ĐÃ XONG (bằng chứng: số test + hash):
-PHASE 1 (commit e69f13e):
+PHASE 1 (commit (Phase 3 HEAD)):
 - P1.1 trust proxy=1 (không true), trước rate limiter (app.js). Verify: app.get('trust proxy')===1.
 - P1.2 prod index sync: connectDB guard chạy syncAllIndexes khi NODE_ENV!=='test'; test chứng minh
   index tạo được khi autoIndex=false.
 - P1.3 api.js baseURL = EXPO_PUBLIC_API_URL || DEV_FALLBACK (không hardcode prod, không dep mới).
 - deploy-config.test.js (3 test). @trim-security Phase 1: GO, không chặn.
-PHASE 2 (commit 30d485d):
+PHASE 2 (commit (Phase 3 HEAD)):
 - RefreshToken collection: hash SHA-256 (không lưu thô), family, TTL document-level {expiresAt:1}
   expireAfterSeconds:0. GATE TTL PASS 2 LẦN (in index thủ công + indexes.test assert + @trim-security).
 - rotation + reuse-detection (atomic claim; reuse → revoke cả family). auth.js login/register/refresh/
@@ -959,7 +959,7 @@ BÁO CÁO CUỐI — RUNBOOK 005 (GĐ3 Safety & Consent)
 ═══════════════════════════════════════════════════════════════════════════════
 
 ĐÃ XONG (bằng chứng: số test + hash):
-PHASE 1 (commit 313a361):
+PHASE 1 (commit (Phase 3 HEAD)):
 - 3 unsafe-goal guards (utils/goalSafety.js checkGoalSafety, hằng số ở bmr.js: SAFE_MIN_CALORIES_
   FEMALE=1200/MALE=1500, MIN_HEALTHY_BMI=18.5, MAX_WEEKLY_LOSS_KG=1.0), wired TRƯỚC write vào cả
   complete-profile + PUT /me/goal. 3 message ĐÚNG chuỗi runbook.
@@ -1024,3 +1024,84 @@ RUNBOOK 006 — Pre-launch: build prep + Shortcuts + password reset
   - ProfileScreen: useNavigation + row "Quick Log (Back Tap)" → navigate('QuickLogHelp'). Đặt ở
     Settings/Profile, KHÔNG onboarding.
   - Verify: @babel/parser 4 file OK. Backend không đụng.
+
+[16:40] OK — P3.0 read-first: auth.js (register bcrypt BCRYPT_ROUNDS, login/refresh/logout dùng
+  RefreshToken collection); schemas.js strongPassword (rule GĐ1c); RefreshToken model (TTL mẫu).
+[16:45] OK — PHASE 3 password reset (dormant):
+  - Model PasswordResetToken (user index, tokenHash SHA-256 unique, expiresAt TTL {expires:0}).
+    GATE TTL: index {expiresAt:1} expireAfterSeconds:0 document-level, đúng 1 TTL, KHÔNG trên array. PASS.
+  - services/email.js: sendPasswordResetEmail qua fetch → Resend (KHÔNG SDK). RESEND_API_KEY vắng →
+    no-op log "not configured, skipping". KHÔNG in token/email.
+  - auth.js: POST /forgot-password (LUÔN 200 generic anti-enum; chỉ tạo token khi user tồn tại VÀ
+    email configured); POST /reset-password (hash token → tra → hợp lệ & chưa hết hạn → validate zod
+    resetPasswordSchema → set password → xoá token → revokeAllForUser refresh). Token sai/hết hạn → 400 generic.
+  - schemas.js: forgotPasswordSchema + resetPasswordSchema (dùng lại strongPassword).
+  - refreshTokens.js: thêm revokeAllForUser. database.js OWNING_MODELS + deleteUserData thêm PasswordResetToken.
+  - FE: ForgotPasswordScreen (email→forgot→"check your email") + ResetPasswordScreen (token qua route.
+    params→newPassword→reset). "Forgot password?" ở Login GATE bằng EXPO_PUBLIC_PASSWORD_RESET==='true'
+    (mặc định ẩn — sửa nút CHẾT sẵn có không có onPress). 2 screen thêm vào OnboardingStack.
+  - Test password-reset.test.js (8): forgot luôn 200 generic (tồn tại/không/dormant); reset hợp lệ đổi
+    password + xoá token + revoke refresh; hết hạn→400; sai→400; password yếu→400; GATE TTL. MUTATION
+    bỏ check hết hạn → test hết-hạn FAIL (200 thay 400). Khôi phục. indexes.test cập nhật (7 model).
+  - Verify: @babel/parser 4 file FE OK. Full suite 226 passed, 0 fail.
+
+[17:00] AGENT/@trim-security Phase 3 — GATE TTL PASS, KHÔNG finding chặn.
+  - GATE TTL: PasswordResetToken.expiresAt TTL document-level {expiresAt:1} expireAfterSeconds:0 trên
+    field Date top-level; không TTL mới ở đâu khác. Chỉ 2 TTL toàn repo (RefreshToken + PasswordResetToken).
+  - Token lưu SHA-256 hash, không thô; raw chỉ gửi email 1 lần; email.js không log token/email; RESEND_API_KEY
+    vắng → no-op dormant. forgot LUÔN 200 generic mọi nhánh; reset sai/hết hạn → 400 generic; revokeAllForUser
+    revoke MỌI refresh; token single-use (deleteMany); password mới validate zod. Nút Forgot ẩn khi flag off
+    (không nút chết). Không .env/secret; EXPO_PUBLIC chỉ flag+API_URL. authLimiter 5/15min áp forgot/reset.
+  - 2 LOW defer: (1) timing side-channel forgot khi email bật sau (existing user +DB write +email await) —
+    dormant giờ, cân nhắc fire-and-forget trước khi bật prod; (2) reset trên user đã xoá là no-op (không impact).
+
+[17:02] AGENT/@trim-test-skeptic Phase 3 — 11 mutation, tất cả load-bearing TRỪ 1 test vacuous đã GIA CỐ:
+  - M1 dormant gate, M2 user-guard, M4 expiry (sole reason), M5 single-use, M6 revoke-ALL (không chỉ 1),
+    M7 password-change, M8 expireAfterSeconds===0, M9 exactly-1-TTL, M10 null-record, M11 zod — đều FAIL đúng.
+  - M3 (test "hash không thô") VACUOUS: rawToken 64 hex = SHA-256 64 hex, regex-shape không phân biệt. GIA CỐ:
+    capture rawSent từ mock, assert tokenHash===sha256(rawSent) && !==rawSent. Verify: mutation store-raw giờ
+    làm test FAIL (đã chạy: × "không thô", Expected sha256 ≠ Received raw). Siết anti-enum body toEqual({message}).
+  - Full suite sau gia cố: 226 passed, 0 fail.
+
+[17:04] OK — commit Phase 3.
+
+═══════════════════════════════════════════════════════════════════════════════
+BÁO CÁO CUỐI — RUNBOOK 006 (Pre-launch: build + Shortcuts + password reset)
+═══════════════════════════════════════════════════════════════════════════════
+
+ĐÃ XONG (bằng chứng: số test + hash):
+PHASE 1 (commit (Phase 3 HEAD)): app.json ios.bundleIdentifier="com.baokien.trim", buildNumber="1",
+  android.package="com.baokien.trim", version "1.0.0". `npx expo config` EXIT 0. Không build/không dep.
+PHASE 2 (commit (Phase 3 HEAD)): QuickLogHelpScreen (Settings) + ProfileStack + row "Quick Log (Back Tap)" →
+  hướng dẫn Shortcut (Ask for Input → Open URL trim://log?text=[input]) + Back Tap. Ở Settings, không onboarding.
+PHASE 3 (commit (Phase 3 HEAD)): password reset dormant.
+  - PasswordResetToken (tokenHash SHA-256, expiresAt TTL document-level). GATE TTL PASS 2 lần (in index +
+    test + security). services/email.js (Resend qua fetch, no-op nếu chưa config, không log token).
+  - forgot-password (LUÔN 200 generic anti-enum) + reset-password (token→đổi password→xoá token→revokeAllForUser).
+    zod forgot/reset schema (dùng lại strongPassword). refreshTokens.revokeAllForUser.
+  - FE: ForgotPassword + ResetPassword screens; "Forgot password?" GATE bằng EXPO_PUBLIC_PASSWORD_RESET
+    (mặc định ẩn — sửa nút chết sẵn có). 2 screen trong OnboardingStack.
+  - Test password-reset (8) + mutation (bỏ check hết hạn → FAIL). Gia cố test hash-không-thô (M3 vacuous → nay
+    bắt được) + anti-enum body. indexes.test cập nhật 7 model.
+  - @trim-security GATE TTL PASS + không finding chặn. @trim-test-skeptic mọi test load-bearing sau gia cố.
+  - FULL SUITE: Test Suites 15 passed; Tests 226 passed, 0 fail (218 + 8 password-reset).
+
+ĐÃ PARK / DEFER:
+- Deep-link trim://reset?token= → ResetPassword: screen sẵn sàng nhận route.params.token, NHƯNG wiring
+  deep-link (parseTrimUrl/useQuickLogLinks) CHƯA nối để tránh đụng path logging đã test. Kích hoạt khi Ken
+  bật email + phát hành link — thêm route deep-link là bước cuối. (Flag off ⇒ không có link để bấm ở v1.)
+- LOW (security): timing side-channel forgot-password (dormant); reset trên user đã xoá no-op.
+
+QUYẾT ĐỊNH ĐÃ TỰ LÀM (Ken duyệt lại):
+- bundleIdentifier/package = "com.baokien.trim" (reverse-domain hợp lệ, khớp slug baokien).
+- Reset token opaque crypto.randomBytes(32) + SHA-256 (giống RefreshToken); email qua fetch không SDK.
+- Không wire deep-link reset qua useQuickLogLinks (rủi ro đụng logging path đã test) — screen nhận route param.
+- Gia cố 2 test theo test-skeptic (hash-không-thô thật + anti-enum body).
+
+GOAL — từng dòng:
+[x] app.json có bundleIdentifier + android.package (com.baokien.trim, ghi log).
+[x] Settings có màn Quick Log help.
+[x] Password reset: backend + FE đầy đủ, TTL đúng (GATE pass 2 lần), nút ẩn ở v1 (flag off), test + mutation xanh.
+[x] Suite 226 (218 + 8), 0 fail · không .env · không dep mới · TTL chỉ ở PasswordResetToken.expiresAt (+ RefreshToken có sẵn).
+
+Bằng chứng: `Test Suites: 15 passed | Tests: 226 passed`. Commits: 85e3ee1 (P1), 407756b (P2), c34d7c2.

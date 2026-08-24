@@ -44,6 +44,13 @@ const loginSchema = z.object({
   password: z.string({ message: 'password is required' }).min(1, 'password is required'),
 });
 
+// Password reset — dùng LẠI strongPassword (cùng rule GĐ1c).
+const forgotPasswordSchema = z.object({ email });
+const resetPasswordSchema = z.object({
+  token: z.string({ message: 'token is required' }).min(1, 'token is required'),
+  newPassword: strongPassword,
+});
+
 // ── WRITE ROUTES ─────────────────────────────────────────────────────────────
 
 const mealItem = z.object({
@@ -95,6 +102,8 @@ const quicklogSchema = z
 module.exports = {
   registerSchema,
   loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   mealSchema,
   activitySchema,
   weightSchema,

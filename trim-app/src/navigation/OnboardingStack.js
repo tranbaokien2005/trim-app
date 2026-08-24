@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
 import DisclaimerScreen from '../screens/onboarding/DisclaimerScreen';
 import LoginScreen from '../screens/onboarding/LoginScreen';
+import ForgotPasswordScreen from '../screens/onboarding/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/onboarding/ResetPasswordScreen';
 import RegisterScreen from '../screens/onboarding/RegisterScreen';
 import AboutYouScreen from '../screens/onboarding/AboutYouScreen';
 import CurrentWeightScreen from '../screens/onboarding/CurrentWeightScreen';
@@ -25,6 +27,8 @@ const OnboardingStack = ({ initialRoute = 'Welcome' }) => {
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="CreateAccount" component={RegisterScreen} />
       <Stack.Screen name="AboutYou" component={AboutYouScreen} />
       <Stack.Screen name="CurrentWeight" component={CurrentWeightScreen} />

@@ -16,6 +16,7 @@ const ActivityLog = require('../models/ActivityLog');
 const WeightLog = require('../models/WeightLog');
 require('../models/Template');
 const RefreshToken = require('../models/RefreshToken');
+require('../models/PasswordResetToken');
 const { syncAllIndexes } = require('../config/database');
 
 let mongod;
@@ -48,7 +49,7 @@ describe('syncAllIndexes (production index bootstrap)', () => {
 
     // Trả về map model → danh sách tên index (createIndexes, không drop).
     expect(Object.keys(synced).sort()).toEqual(
-      ['ActivityLog', 'MealLog', 'RefreshToken', 'Template', 'User', 'WeightLog']
+      ['ActivityLog', 'MealLog', 'PasswordResetToken', 'RefreshToken', 'Template', 'User', 'WeightLog']
     );
 
     // RefreshToken: TTL document-level đúng hình dạng (GATE — chỗ TTL DUY NHẤT được phép).

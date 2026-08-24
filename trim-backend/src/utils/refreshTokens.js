@@ -94,11 +94,20 @@ const revokeFamily = async (family) => {
   );
 };
 
+/** Thu hồi TẤT CẢ refresh token của một user (buộc đăng nhập lại mọi thiết bị). */
+const revokeAllForUser = async (userId) => {
+  await RefreshToken.updateMany(
+    { user: userId, revokedAt: null },
+    { $set: { revokedAt: new Date() } }
+  );
+};
+
 module.exports = {
   issueRefreshToken,
   rotateRefreshToken,
   revokeRefreshToken,
   revokeFamily,
+  revokeAllForUser,
   hashToken,
   RefreshError,
 };
