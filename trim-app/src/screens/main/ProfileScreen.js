@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
@@ -34,6 +34,7 @@ const capitalizeName = (name) => {
 };
 
 const ProfileScreen = () => {
+  const navigation = useNavigation();
   const { user: authUser, logout } = useAuth();
   const [userData, setUserData] = useState(authUser);
   const [loading, setLoading] = useState(!authUser);
@@ -190,6 +191,19 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        {/* Quick Log (Back Tap) help — power-user feature, in Settings not onboarding */}
+        <TouchableOpacity
+          style={styles.settingsRow}
+          onPress={() => navigation.navigate('QuickLogHelp')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingsRowLeft}>
+            <MaterialCommunityIcons name="gesture-double-tap" size={20} color={C.primary} />
+            <Text style={styles.settingsRowText}>Quick Log (Back Tap)</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={C.secondary} />
+        </TouchableOpacity>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <MaterialCommunityIcons name="logout" size={18} color={C.danger} />
@@ -338,6 +352,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: C.danger },
+  settingsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 15, paddingHorizontal: 16, marginBottom: 12,
+  },
+  settingsRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingsRowText: { fontSize: 15, fontWeight: '600', color: C.text },
 
   deleteLink: {
     alignItems: 'center',

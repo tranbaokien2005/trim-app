@@ -1014,3 +1014,13 @@ RUNBOOK 006 — Pre-launch: build prep + Shortcuts + password reset
   - android.package = "com.baokien.trim"
   - version "1.0.0" đã có sẵn.
   - `npx expo config --type public` EXIT 0, resolve đúng bundleIdentifier/package/buildNumber. Không build, không cài gì.
+
+[16:15] OK — PHASE 2 Quick Log (Back Tap) help:
+  - QuickLogHelpScreen.js (Settings): giải thích gõ 2 lần vào lưng iPhone log nhanh; 3 phần —
+    (1) tạo Shortcut: Ask for Input (Text) → Open URL trim://log?text=[Provided Input] → tên "Trim
+    Quick Log"; (2) gán Back Tap: Settings → Accessibility → Touch → Back Tap → chọn shortcut; (3)
+    cách dùng. Ghi chú "iCloud shortcut link coming soon" (chỗ cho link Ken sau).
+  - ProfileStack.js (mới): ProfileMain + QuickLogHelp. MainTabs: Profile tab dùng ProfileStack.
+  - ProfileScreen: useNavigation + row "Quick Log (Back Tap)" → navigate('QuickLogHelp'). Đặt ở
+    Settings/Profile, KHÔNG onboarding.
+  - Verify: @babel/parser 4 file OK. Backend không đụng.
