@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
+import DisclaimerScreen from '../screens/onboarding/DisclaimerScreen';
 import LoginScreen from '../screens/onboarding/LoginScreen';
 import RegisterScreen from '../screens/onboarding/RegisterScreen';
 import AboutYouScreen from '../screens/onboarding/AboutYouScreen';
@@ -22,6 +23,7 @@ const OnboardingStack = ({ initialRoute = 'Welcome' }) => {
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="CreateAccount" component={RegisterScreen} />
       <Stack.Screen name="AboutYou" component={AboutYouScreen} />

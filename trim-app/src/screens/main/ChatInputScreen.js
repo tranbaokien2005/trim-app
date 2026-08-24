@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
+import ConsentModal from '../../components/ConsentModal';
 
 const getToday = () => {
   const d = new Date();
@@ -58,6 +59,7 @@ const ChatInputScreen = ({ navigation }) => {
   const [remainingCalories, setRemainingCalories] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [totalCalories, setTotalCalories] = useState(0);
+  const [showConsent, setShowConsent] = useState(false); // AI consent gate (guideline 5.1.2(i))
 
   const displayTotal  = parsedItems.reduce((s, i) => s + (i.displayCalories || 0), 0);
   const mealTypeLabel = MEAL_LABELS[getMealType()];
@@ -125,7 +127,14 @@ const ChatInputScreen = ({ navigation }) => {
         setRemainingCalories(null);
       }
       setUiState('results');
-    } catch {
+    } catch (err) {
+      // Chưa đồng ý gửi dữ liệu cho OpenAI → hiện màn consent thay vì lỗi thô.
+      if (err?.response?.status === 403 && err?.response?.data?.code === 'AI_CONSENT_REQUIRED') {
+        setUiState('empty');
+        setErrorText('');
+        setShowConsent(true);
+        return;
+      }
       setUiState('empty');
       setErrorText("Couldn't parse that. Try again.");
     }
@@ -561,6 +570,12 @@ const ChatInputScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </View>
+
+      <ConsentModal
+        visible={showConsent}
+        onEnable={() => { setShowConsent(false); handleParse(); }}
+        onDismiss={() => setShowConsent(false)}
+      />
     </SafeAreaView>
   );
 };

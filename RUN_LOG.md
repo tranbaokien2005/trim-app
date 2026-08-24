@@ -921,3 +921,84 @@ RUNBOOK 005 — GĐ3 Safety & Consent
     + không tạo goal). safety-guards 15 test. Full suite 218 passed.
 
 [14:44] OK — commit Phase 1.
+
+[15:00] OK — Phase 1 committed 313a361. P2.0 read-first Phase 2:
+  1. Onboarding (OnboardingStack.js): Welcome → Login/CreateAccount → AboutYou → CurrentWeight →
+     GoalType → TargetSettings → Summary → FirstLogChoice. Welcome "Get Started" → navigate('Login')
+     (WelcomeScreen.js:242). → chèn DisclaimerScreen giữa Welcome và Login.
+  2. HomeScreen: Calorie Ring Card hiển thị tdee (HomeScreen.js:678-679, label "TDEE"). → thêm dòng
+     "Estimated — not medical advice." dưới số calo.
+  3. AI flow: ChatInputScreen.js:118 api.post('/meals/parse-text'); catch generic (dòng 128 →
+     "Couldn't parse that"). → bắt 403 AI_CONSENT_REQUIRED, hiện ConsentModal thay vì lỗi thô.
+
+[15:20] OK — PHASE 2 frontend:
+  - P2.1 ConsentModal (src/components/ConsentModal.js): copy ĐÚNG chuỗi runbook (title "Use AI to
+    analyze your food & activity?", body OpenAI + "does not use this data to train", sub "This is
+    optional...", nút "Enable AI analysis" → POST /users/ai-consent, "Not now — I'll log manually" → đóng).
+    Wire vào ChatInputScreen + ActivityChatScreen: catch 403 code AI_CONSENT_REQUIRED → hiện modal
+    (không lỗi thô); onEnable → POST consent rồi retry handleParse; onDismiss → về log tay.
+  - P2.2 DisclaimerScreen (onboarding): copy ĐÚNG "Before you start — Trim helps you track...
+    disordered eating." Nút bắt buộc "I understand" → navigate('Login'). Chèn vào OnboardingStack
+    (Welcome → Disclaimer → Login); WelcomeScreen "Get Started" → navigate('Disclaimer').
+  - P2.2 tại chỗ: HomeScreen thêm dòng "Estimated — not medical advice." dưới hàng Consumed/TDEE/Deficit
+    (không giấu trong Settings).
+  - Verify: @babel/parser parse cả 7 file frontend OK (không lỗi cú pháp). Backend suite 218/0 (không đổi).
+
+[15:35] AGENT/@trim-security Phase 2 — KHÔNG finding chặn. Consent gate là SERVER-SIDE (Phase 1) —
+  client chỉ UX, fail-closed kể cả nếu client bug. ChatInput + ActivityChat: bắt 403 AI_CONSENT_REQUIRED
+  → ConsentModal (không lỗi thô); Enable → POST consent → retry; Not now → không gọi AI; enable() chỉ
+  onEnable khi POST thành công (không có đường retry-không-consent). Copy consent + disclaimer ĐÚNG chuỗi
+  runbook (verbatim). Disclaimer bắt buộc trong onboarding (Welcome→Disclaimer→Login, "I understand" mới
+  tiếp) + dòng Home "Estimated — not medical advice." KHÔNG giấu Settings. Không .env/secret/TTL/dep mới.
+  1 lưu ý LOW (product): "I understand" không persist + modal reactive trên 403 — runbook cho phép, defer.
+
+[15:37] OK — commit Phase 2.
+
+═══════════════════════════════════════════════════════════════════════════════
+BÁO CÁO CUỐI — RUNBOOK 005 (GĐ3 Safety & Consent)
+═══════════════════════════════════════════════════════════════════════════════
+
+ĐÃ XONG (bằng chứng: số test + hash):
+PHASE 1 (commit 313a361):
+- 3 unsafe-goal guards (utils/goalSafety.js checkGoalSafety, hằng số ở bmr.js: SAFE_MIN_CALORIES_
+  FEMALE=1200/MALE=1500, MIN_HEALTHY_BMI=18.5, MAX_WEEKLY_LOSS_KG=1.0), wired TRƯỚC write vào cả
+  complete-profile + PUT /me/goal. 3 message ĐÚNG chuỗi runbook.
+- AI consent gate: User.aiConsent{granted,grantedAt} (KHÔNG TTL); POST /api/users/ai-consent (idempotent);
+  requireAiConsent middleware (meals/activities parse-text) + inline quicklog (meal/activity) → 403
+  AI_CONSENT_REQUIRED, KHÔNG chạm OpenAI khi chưa consent.
+- Test safety-guards.test.js (15): 6 unit checkGoalSafety + 4 integration goal (rate/BMI/calo→400+msg+
+  không tạo goal; safe→200) + 5 consent (chưa consent→403 + parseMealText not called; sau consent→qua;
+  idempotent spy; weight/log tay không cần consent). MUTATION tắt guard calo → 2 test FAIL. Gia cố
+  idempotent (spy) + calo integration theo test-skeptic.
+- @trim-test-skeptic: mọi test load-bearing. @trim-security: guard server-side không bypass, consent
+  không bypass, không TTL/secret. Cả hai KHÔNG finding chặn.
+PHASE 2 (commit (Phase 2 HEAD)):
+- ConsentModal (copy đúng, bắt 403 ở ChatInput + ActivityChat, Enable→POST consent→retry, Not now→log tay).
+- DisclaimerScreen onboarding bắt buộc "I understand" (Welcome→Disclaimer→Login) + Home "Estimated —
+  not medical advice." tại chỗ (không giấu). Copy đúng chuỗi runbook.
+- Verify: @babel/parser 7 file frontend OK. Backend suite 218/0 (frontend không ảnh hưởng backend).
+- @trim-security: KHÔNG finding chặn (consent gate server-side vững, copy đúng, disclaimer hiển thị).
+- FULL SUITE: Test Suites 14 passed; Tests 218 passed, 0 fail (203 cũ + 15 mới safety-guards).
+
+ĐÃ PARK / DEFER (ghi log, không làm ở runbook này):
+- Chặn nội dung rối loạn ăn uống trong chat AI → feature /chat chưa build (claude/AI_COMPANION_DESIGN.md vòng 4).
+- Placeholder Privacy Policy/Terms + host URL → việc Ken, ngoài code.
+- Security LOW (Phase 1): complete-profile không null-check body (pre-existing, 500 nếu malformed);
+  quicklog lặp gate inline. Security LOW (Phase 2): "I understand" không persist, modal reactive trên 403
+  (runbook cho phép).
+
+QUYẾT ĐỊNH ĐÃ TỰ LÀM (Ken duyệt lại):
+- 'other' gender dùng ngưỡng calo nữ (1200) tránh over-reject; guard vẫn chặn mọi target <1200 cho mọi giới.
+- Guard chạy TRƯỚC mọi DB write ở complete-profile (reject sạch, không để profile/weightlog mồ côi);
+  tái dùng bmr/tdee đã tính, không tính lại.
+- Wire ConsentModal cho CẢ ChatInputScreen VÀ ActivityChatScreen (activity cũng gọi AI).
+- Disclaimer đặt giữa Welcome và Login (mọi new user thấy trước khi vào profile-setup).
+- Gia cố 2 test theo test-skeptic (idempotent spy thay diff clock; calo integration).
+
+GOAL tổng — từng dòng:
+[x] Phase 1: 3 unsafe-goal guards (reject+message, hằng số ở bmr.js) + AI consent gate (403 AI_CONSENT_
+    REQUIRED, không chạm OpenAI khi chưa consent) — test + mutation — commit 313a361.
+[x] Phase 2: consent screen (đúng copy, bắt 403) + disclaimer onboarding + dòng tại chỗ — commit (Phase 2 HEAD).
+[x] Suite 218 (203 + 15 mới), 0 fail · không .env · không dep mới · không TTL.
+
+Bằng chứng: `Test Suites: 14 passed | Tests: 218 passed`. Commits: 313a361 (P1), Phase 2 HEAD.

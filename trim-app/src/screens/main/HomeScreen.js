@@ -684,6 +684,9 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
 
+          {/* Disclaimer tại chỗ (RUNBOOK 005 P2.2) — KHÔNG giấu trong Settings. */}
+          <Text style={styles.medicalDisclaimer}>Estimated — not medical advice.</Text>
+
           <View style={styles.progressBarContainer}>
             <View style={styles.progressBarTrack}>
               <View
@@ -1094,6 +1097,7 @@ const styles = StyleSheet.create({
   calItemMiddle: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   calValue:      { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   calLabel:      { color: '#666', fontSize: 12, marginTop: 2 },
+  medicalDisclaimer: { color: 'rgba(255,255,255,0.35)', fontSize: 11, textAlign: 'center', marginTop: 12 },
 
   // Macros
   macroRow:  { flexDirection: 'row', gap: 8, marginBottom: 12 },

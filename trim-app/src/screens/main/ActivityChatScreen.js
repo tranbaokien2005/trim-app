@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
+import ConsentModal from '../../components/ConsentModal';
 
 const getToday = () => {
   const d = new Date();
@@ -42,6 +43,7 @@ const ActivityChatScreen = ({ navigation }) => {
   const [remainingCalories, setRemainingCalories] = useState(null);
   const [editingIndex, setEditingIndex]     = useState(null);
   const [totalCalories, setTotalCalories]   = useState(0);
+  const [showConsent, setShowConsent] = useState(false);
 
   const displayTotal = parsedItems.reduce((s, i) => s + (i.displayCalories || 0), 0);
   const hasInput     = formItems.some((i) => i.activity.trim()) || freeText.trim().length > 0;
@@ -110,7 +112,13 @@ const ActivityChatScreen = ({ navigation }) => {
         setRemainingCalories(null);
       }
       setUiState('results');
-    } catch {
+    } catch (err) {
+      if (err?.response?.status === 403 && err?.response?.data?.code === 'AI_CONSENT_REQUIRED') {
+        setUiState('empty');
+        setErrorText('');
+        setShowConsent(true);
+        return;
+      }
       setUiState('empty');
       setErrorText("Couldn't parse that. Try again.");
     }
@@ -500,6 +508,12 @@ const ActivityChatScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </View>
+
+      <ConsentModal
+        visible={showConsent}
+        onEnable={() => { setShowConsent(false); handleParse(); }}
+        onDismiss={() => setShowConsent(false)}
+      />
     </SafeAreaView>
   );
 };
