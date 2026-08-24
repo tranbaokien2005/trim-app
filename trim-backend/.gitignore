@@ -2,3 +2,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# user data backups — DO NOT commit
+backup-weightlogs-*.json
