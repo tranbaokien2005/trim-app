@@ -73,6 +73,12 @@ api.interceptors.response.use(
       const newAccessToken = data.accessToken;
 
       await SecureStore.setItemAsync('authToken', newAccessToken);
+      // ROTATION: backend xoay refresh token mỗi lần refresh và trả token MỚI.
+      // PHẢI lưu lại; nếu không, lần refresh sau gửi token cũ (đã revoke) → backend coi
+      // là reuse → revoke cả family → đăng xuất. (RUNBOOK 004 P2.2 reuse-detection.)
+      if (data.refreshToken) {
+        await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+      }
       setAuthToken(newAccessToken);
       processQueue(null, newAccessToken);
 

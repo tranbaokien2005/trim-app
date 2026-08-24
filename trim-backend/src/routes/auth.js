@@ -1,7 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { generateAccessToken } = require('../utils/jwt');
+const {
+  issueRefreshToken, rotateRefreshToken, revokeRefreshToken, RefreshError,
+} = require('../utils/refreshTokens');
 const validate = require('../middleware/validate');
 const { registerSchema, loginSchema } = require('../validation/schemas');
 
@@ -39,10 +42,8 @@ router.post('/register', validate(registerSchema, { replace: true }), async (req
     await user.save();
 
     const accessToken = generateAccessToken({ userId: user._id });
-    const refreshToken = generateRefreshToken({ userId: user._id });
-
-    user.refreshTokens.push({ token: refreshToken });
-    await user.save();
+    // Refresh token: opaque ngẫu nhiên, lưu HASH ở collection RefreshToken (không phải array).
+    const { raw: refreshToken } = await issueRefreshToken(user._id);
 
     res.status(201).json({
       accessToken,
@@ -87,13 +88,12 @@ router.post('/login', validate(loginSchema, { replace: true }), async (req, res,
     if (user.failedLoginAttempts > 0 || user.lockUntil) {
       user.failedLoginAttempts = 0;
       user.lockUntil = null;
+      await user.save();
     }
 
     const accessToken = generateAccessToken({ userId: user._id });
-    const refreshToken = generateRefreshToken({ userId: user._id });
-
-    user.refreshTokens.push({ token: refreshToken });
-    await user.save();
+    // Login mới → family mới. Token thô chỉ trả về đây (DB lưu hash).
+    const { raw: refreshToken } = await issueRefreshToken(user._id);
 
     res.json({
       accessToken,
@@ -105,7 +105,7 @@ router.post('/login', validate(loginSchema, { replace: true }), async (req, res,
   }
 });
 
-// POST /api/auth/refresh
+// POST /api/auth/refresh — XOAY token (rotation) + reuse-detection.
 router.post('/refresh', async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -114,26 +114,25 @@ router.post('/refresh', async (req, res, next) => {
       return res.status(400).json({ message: 'Refresh token required' });
     }
 
-    const decoded = verifyRefreshToken(refreshToken);
-
-    const user = await User.findOne({
-      _id: decoded.userId,
-      'refreshTokens.token': refreshToken,
-    });
-
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+    try {
+      // Trả token thô MỚI (client PHẢI lưu lại — xem interceptor api.js).
+      const { raw, userId } = await rotateRefreshToken(refreshToken);
+      const accessToken = generateAccessToken({ userId });
+      return res.json({ accessToken, refreshToken: raw });
+    } catch (err) {
+      if (err instanceof RefreshError) {
+        // Generic 401 cho MỌI nhánh (invalid/expired/reuse) — không lộ vì sao.
+        // reuse-detection đã revoke cả family bên trong rotateRefreshToken.
+        return res.status(401).json({ message: 'Invalid refresh token' });
+      }
+      throw err;
     }
-
-    const accessToken = generateAccessToken({ userId: user._id });
-
-    res.json({ accessToken });
   } catch (error) {
     next(error);
   }
 });
 
-// POST /api/auth/logout
+// POST /api/auth/logout — thu hồi token hiện tại.
 router.post('/logout', async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -142,12 +141,8 @@ router.post('/logout', async (req, res, next) => {
       return res.status(400).json({ message: 'Refresh token required' });
     }
 
-    const decoded = verifyRefreshToken(refreshToken);
-
-    await User.updateOne(
-      { _id: decoded.userId },
-      { $pull: { refreshTokens: { token: refreshToken } } }
-    );
+    // Opaque token → chỉ cần revoke bản ghi khớp hash. Không lộ nếu token không tồn tại.
+    await revokeRefreshToken(refreshToken);
 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {

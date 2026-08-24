@@ -1,8 +1,9 @@
-const MealLog     = require('../models/MealLog');
-const ActivityLog = require('../models/ActivityLog');
-const WeightLog   = require('../models/WeightLog');
-const Template    = require('../models/Template');
-const User        = require('../models/User');
+const MealLog      = require('../models/MealLog');
+const ActivityLog  = require('../models/ActivityLog');
+const WeightLog    = require('../models/WeightLog');
+const Template     = require('../models/Template');
+const RefreshToken = require('../models/RefreshToken');
+const User         = require('../models/User');
 
 /**
  * Xoá TOÀN BỘ dữ liệu thuộc về một user.
@@ -19,6 +20,7 @@ const OWNED_COLLECTIONS = [
   { name: 'activities', model: ActivityLog },
   { name: 'weights',    model: WeightLog },
   { name: 'templates',  model: Template },
+  { name: 'refreshTokens', model: RefreshToken },
 ];
 
 const deleteUserData = async (userId, { deleteUser = true } = {}) => {

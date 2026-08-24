@@ -15,6 +15,7 @@ const MealLog = require('../models/MealLog');
 const ActivityLog = require('../models/ActivityLog');
 const WeightLog = require('../models/WeightLog');
 require('../models/Template');
+const RefreshToken = require('../models/RefreshToken');
 const { syncAllIndexes } = require('../config/database');
 
 let mongod;
@@ -47,8 +48,17 @@ describe('syncAllIndexes (production index bootstrap)', () => {
 
     // Trả về map model → danh sách tên index (createIndexes, không drop).
     expect(Object.keys(synced).sort()).toEqual(
-      ['ActivityLog', 'MealLog', 'Template', 'User', 'WeightLog']
+      ['ActivityLog', 'MealLog', 'RefreshToken', 'Template', 'User', 'WeightLog']
     );
+
+    // RefreshToken: TTL document-level đúng hình dạng (GATE — chỗ TTL DUY NHẤT được phép).
+    const rtIdx = await RefreshToken.collection.indexes();
+    const ttl = rtIdx.find((i) => i.key && i.key.expiresAt === 1);
+    expect(ttl).toBeDefined();
+    expect(ttl.expireAfterSeconds).toBe(0);
+    // KHÔNG có TTL trên field nào khác (chỉ expiresAt mới có expireAfterSeconds).
+    const ttlCount = rtIdx.filter((i) => i.expireAfterSeconds !== undefined).length;
+    expect(ttlCount).toBe(1);
 
     // User: email unique (do unique:true), KHÔNG có index {email:1} trùng.
     const userIdx = (await User.collection.indexes());

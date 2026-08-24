@@ -763,3 +763,104 @@ RUNBOOK 004 — Deploy hardening + RefreshToken security
      lần refresh sau dùng token cũ (đã revoke) → reuse-detection revoke cả family → đăng xuất nhầm.
      ⇒ Phase 2 PHẢI cập nhật client: refresh response trả { accessToken, refreshToken } và interceptor
        lưu refreshToken mới vào SecureStore. (Nằm trong scope: GOAL "client refresh vẫn chạy".)
+
+[12:40] OK — PHASE 2 code (RefreshToken security):
+  - P2.1 models/RefreshToken.js: collection RIÊNG. Fields: user(index), tokenHash(unique, SHA-256,
+    KHÔNG lưu thô), family(index), expiresAt (TTL document-level: index {expires:0}), revokedAt.
+  - GATE TTL (lần 1): in RefreshToken.collection.indexes() → CÓ {expiresAt:1} expireAfterSeconds:0
+    document-level; các index khác (user, tokenHash unique, family) KHÔNG TTL; KHÔNG TTL trên
+    array/subdoc. HÌNH DẠNG ĐÚNG. (indexes.test.js cũng assert: expireAfterSeconds===0 và đúng 1
+    index có expireAfterSeconds.)
+  - P2.2 utils/refreshTokens.js: issueRefreshToken (raw crypto.randomBytes, lưu hash, family),
+    rotateRefreshToken (atomic claim findOneAndUpdate revokedAt:null → issue mới cùng family,
+    revoke cũ), reuse-detection (token đã revoke bị trình lại → revokeFamily + throw), revokeRefreshToken,
+    revokeFamily. Generic 401 mọi nhánh fail.
+  - auth.js: login/register issueRefreshToken (family mới); refresh → rotateRefreshToken, trả
+    {accessToken, refreshToken mới}; logout → revokeRefreshToken. Bỏ generateRefreshToken/verifyRefreshToken.
+  - P2.3: BỎ array refreshTokens khỏi User schema + toJSON. Thêm RefreshToken vào deleteUserData
+    OWNED_COLLECTIONS (xoá token khi xoá account) + database.js OWNING_MODELS (tạo TTL/index trên prod).
+  - client trim-app/src/services/api.js: interceptor LƯU data.refreshToken mới sau rotation (nếu
+    không, lần sau gửi token cũ đã revoke → reuse → đăng xuất). GOAL "client refresh vẫn chạy".
+  - indexes.test.js cập nhật: 6 model (thêm RefreshToken) + assert TTL shape (GATE trong test).
+
+[12:42] OK — P2.4 test src/__tests__/refresh-token.test.js (6): lưu hash không phải thô + expiresAt +
+  family; rotation (token cũ chết, mới dùng được); reuse → 401 + revoke CẢ family (t2 cũng chết,
+  scope theo family); token không tồn tại → 401 generic; logout revoke; missing → 400.
+  MUTATION: revokeFamily thành no-op (tắt reuse-detection) → test reuse FAIL (afterReuse t2 vẫn 200
+  thay vì 401) → test KHÔNG rỗng. Khôi phục, xanh lại.
+  Full suite: 203 passed, 0 fail (chạy 2 lần, deterministic — đã sửa indexes.test brittle count).
+
+[12:44] OK — P2.3 cleanup script scripts/cleanup-user-refreshtokens.js (dry-run mặc định, --apply
+  tường minh, chỉ $unset field refreshTokens, không xoá document). DRY-RUN thật: 8 user còn field
+  refreshTokens (array JWT thô cũ). PARK apply — cần Ken backup rồi chạy --apply. KHÔNG tự apply.
+
+[13:00] AGENT/@trim-test-skeptic Phase 2 — 6/6 test LOAD-BEARING. Xác nhận test reuse (quan trọng
+  nhất): assertion afterReuse(t2)→401 mới là chỗ pin reuse-detection (mutation revokeFamily no-op →
+  FAIL), scope countDocuments theo family đúng (không nhiễu token register). Test TTL indexes.test
+  assert expireAfterSeconds===0 + đúng 1 TTL. Điểm yếu: Test rotation UNDER-ASSERT (không kiểm token
+  cũ chết). GIA CỐ (đã áp): Test rotation thêm DB assert t1rec.revokedAt truthy sau rotation; Test
+  reuse thêm positive-control family register vẫn active (không over-reach). refresh-token 6/6 sau gia cố.
+
+[13:02] AGENT/@trim-security Phase 2 — GATE TTL PASS, KHÔNG finding chặn.
+  - GATE TTL: RefreshToken.expiresAt là TTL document-level {expiresAt:1} expireAfterSeconds:0 trên
+    field Date TOP-LEVEL; array-TTL ở User ĐÃ bỏ hoàn toàn; không TTL mới ở model khác (subscription.
+    expiresAt, lockUntil là Date thường không index). indexes.test là regression guard cho vụ 18-account.
+  - Token lưu SHA-256 hash, KHÔNG thô; raw chỉ trả client 1 lần (register/login/refresh); warn chỉ
+    log family+user id, không log token. Reuse-detection atomic (findOneAndUpdate revokedAt:null) đóng
+    race đúng; generic 401 mọi nhánh. crypto.randomBytes(32/16) đủ entropy; không Math.random.
+  - .env không commit; deleteUserData xoá RefreshToken khi xoá account (không orphan); database.js
+    OWNING_MODELS có RefreshToken (TTL tạo trên prod). Bỏ array = buộc login lại (session reset,
+    KHÔNG mất dữ liệu) — chấp nhận được. cleanup script dry-run default.
+  - 2 lưu ý LOW (không chặn): authLimiter 5/15min áp cả /refresh (xác nhận trước launch với access TTL
+    15m); /refresh không zod (an toàn vì token chỉ để hash+so khớp). Defer.
+  - GATE TTL lần 2 (security) = PASS. Full suite 203 passed, 0 fail.
+
+[13:05] OK — Phase 2 committed: 30d485d. .env không staged (verify). Body ghi PARK cleanup (8 user).
+
+═══════════════════════════════════════════════════════════════════════════════
+BÁO CÁO CUỐI — RUNBOOK 004 (Deploy hardening + RefreshToken security)
+═══════════════════════════════════════════════════════════════════════════════
+
+ĐÃ XONG (bằng chứng: số test + hash):
+PHASE 1 (commit e69f13e):
+- P1.1 trust proxy=1 (không true), trước rate limiter (app.js). Verify: app.get('trust proxy')===1.
+- P1.2 prod index sync: connectDB guard chạy syncAllIndexes khi NODE_ENV!=='test'; test chứng minh
+  index tạo được khi autoIndex=false.
+- P1.3 api.js baseURL = EXPO_PUBLIC_API_URL || DEV_FALLBACK (không hardcode prod, không dep mới).
+- deploy-config.test.js (3 test). @trim-security Phase 1: GO, không chặn.
+PHASE 2 (commit 30d485d):
+- RefreshToken collection: hash SHA-256 (không lưu thô), family, TTL document-level {expiresAt:1}
+  expireAfterSeconds:0. GATE TTL PASS 2 LẦN (in index thủ công + indexes.test assert + @trim-security).
+- rotation + reuse-detection (atomic claim; reuse → revoke cả family). auth.js login/register/refresh/
+  logout dùng collection mới; generic 401 mọi nhánh. Bỏ array refreshTokens khỏi User (chỗ TTL-array
+  từng xoá 18 account). deleteUserData + OWNING_MODELS thêm RefreshToken. client lưu token xoay.
+- refresh-token.test.js (6 test, đã gia cố rotation + positive-control) + indexes TTL assert.
+  MUTATION: revokeFamily no-op → test reuse FAIL → không rỗng. @trim-test-skeptic: mọi test load-bearing.
+  @trim-security: GATE TTL PASS, không chặn.
+- FULL SUITE CUỐI: Test Suites 13 passed; Tests 203 passed, 0 fail (194 cũ + 3 deploy + 6 refresh).
+
+ĐÃ PARK (cần Ken):
+- P2.3 cleanup array cũ: scripts/cleanup-user-refreshtokens.js. Dry-run: 8 user còn field
+  refreshTokens (array JWT thô). Cần Ken: backup users → `node scripts/cleanup-user-refreshtokens.js
+  --apply` ($unset field, không xoá document). KHÔNG tự apply.
+- LOW defer (từ security): authLimiter 5/15min áp cả /refresh (xác nhận với access TTL 15m trước
+  launch); /refresh không zod (an toàn). trust proxy hop-count nếu đổi topology; không để secret vào
+  EXPO_PUBLIC_*.
+
+QUYẾT ĐỊNH ĐÃ TỰ LÀM (Ken duyệt lại):
+- Refresh token đổi từ JWT → opaque random (crypto.randomBytes) + hash. Access token vẫn JWT.
+- Rotation trả {accessToken, refreshToken} → PHẢI cập nhật client lưu refreshToken mới (nếu không,
+  reuse-detection đăng xuất nhầm). Đã sửa api.js interceptor.
+- reuse revoke theo FAMILY (session), không đụng session khác (multi-device an toàn).
+- Gia cố 2 test theo test-skeptic (DB assert token cũ revoked + positive-control family register).
+- Không đổi jwt.js (generateRefreshToken/verifyRefreshToken còn export nhưng auth không dùng nữa;
+  verifyAccessToken vẫn dùng). Để nguyên, không dọn (ngoài scope, tránh rủi ro).
+
+GOAL tổng — từng dòng:
+[x] Phase 1: trust proxy set (value 1), prod index sync verify, env baseURL — commit e69f13e.
+[x] Phase 2: RefreshToken hashed+rotation+reuse-detection, document TTL đúng hình dạng (GATE 2 lần),
+    array cũ bỏ khỏi User, client refresh vẫn chạy — commit 30d485d.
+[x] Suite ≥194 + test mới, 0 fail → 203 passed.
+[x] Không .env; TTL CHỈ trên RefreshToken.expiresAt, không ở đâu khác (security xác nhận).
+
+Bằng chứng: `Test Suites: 13 passed | Tests: 203 passed`. Commits: e69f13e (P1), 30d485d (P2).

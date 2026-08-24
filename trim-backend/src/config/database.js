@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 // Các model "sở hữu" index. createIndexes() được gọi lúc khởi động để đảm bảo
 // index tồn tại kể cả khi autoIndex=false trên production (finding #1).
 // Bao gồm Template (finding F2 của trim-security) để index Template cũng được tạo.
-const OWNING_MODELS = ['User', 'MealLog', 'ActivityLog', 'WeightLog', 'Template'];
+const OWNING_MODELS = ['User', 'MealLog', 'ActivityLog', 'WeightLog', 'Template', 'RefreshToken'];
 
 // Tạo index cho các model sở hữu. Vì production đặt autoIndex=false
 // (tránh schema sai âm thầm dựng lại index nguy hiểm), index unique/partial
@@ -48,6 +48,7 @@ const connectDB = async () => {
       require('../models/ActivityLog');
       require('../models/WeightLog');
       require('../models/Template');
+      require('../models/RefreshToken');
       try {
         const created = await syncAllIndexes();
         console.log('Indexes ensured:', JSON.stringify(created));

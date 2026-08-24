@@ -95,17 +95,10 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
-  refreshTokens: [{
-    token: String,
-    createdAt: {
-      type: Date,
-      default: Date.now,
-      // KHÔNG đặt `expires` ở đây. Mongoose sẽ tạo TTL index trên
-      // "refreshTokens.createdAt" — TTL trên field kiểu MẢNG khiến MongoDB
-      // xoá CẢ DOCUMENT khi phần tử sớm nhất quá hạn, tức là xoá luôn user.
-      // Hạn của refresh token do JWT exp lo; dọn mảng bằng code ở Giai đoạn 1.
-    },
-  }],
+  // refreshTokens (array) ĐÃ BỎ (RUNBOOK 004 P2.3). Refresh token giờ nằm ở collection
+  // RIÊNG `RefreshToken` (hashed + rotation + reuse-detection + TTL document-level). Bỏ
+  // luôn cái array từng là nơi TTL-trên-mảng xoá 18 tài khoản. User cũ đang giữ refresh
+  // JWT cũ: refresh sẽ fail (token không còn trong hệ mới) → client về màn login, đăng nhập lại.
 }, {
   timestamps: true,
 });
@@ -118,7 +111,6 @@ const userSchema = new mongoose.Schema({
 userSchema.methods.toJSON = function() {
   const userObject = this.toObject();
   delete userObject.passwordHash;
-  delete userObject.refreshTokens;
   return userObject;
 };
 
