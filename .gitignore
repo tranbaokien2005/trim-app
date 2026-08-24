@@ -8,3 +8,7 @@ build/
 ios/
 android/
 .claude/
+
+# team agents - commit these
+!.claude/agents/
+!.claude/skills/
