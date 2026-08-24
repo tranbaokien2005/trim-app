@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { calcTotals } = require('../utils/logHelpers');
 
 const mealItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -61,5 +62,14 @@ mealLogSchema.index(
   { user: 1, clientId: 1 },
   { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } }
 );
+
+/**
+ * Tự tính totals từ items trước khi lưu — model là nguồn sự thật duy nhất,
+ * route không phải tự cộng (giảm chỗ sai lệch). Dùng lại calcTotals đã có,
+ * KHÔNG viết lại công thức. Chạy trên mọi .save() (create + update-then-save).
+ */
+mealLogSchema.pre('save', function () {
+  this.totals = calcTotals(this.items || []);
+});
 
 module.exports = mongoose.model('MealLog', mealLogSchema);

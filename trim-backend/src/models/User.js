@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
   currentStats: {
     weight: Number, // in kg
     bmi: Number,
+    bmr: Number,      // kcal/ngày (Mifflin-St Jeor, làm tròn) — từ utils/bmr.js
+    baseline: Number, // kcal/ngày (NEAT + tiêu hoá) = round(bmr * BASELINE_RATIO)
     weightUpdatedAt: Date,
   },
   goals: [{
@@ -95,8 +97,9 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for email
-userSchema.index({ email: 1 });
+// Email đã có unique index do `unique: true` trên field (dòng ~7) tự sinh.
+// KHÔNG khai báo thêm `userSchema.index({ email: 1 })` — sẽ tạo index THỪA,
+// trùng key với unique index và tốn chi phí ghi vô ích.
 
 // Remove password hash from JSON output
 userSchema.methods.toJSON = function() {

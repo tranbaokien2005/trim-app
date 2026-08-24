@@ -4,6 +4,7 @@ const WeightLog = require('../models/WeightLog');
 const User = require('../models/User');
 const { calculateBMI } = require('../utils/bmr');
 const { syncCurrentStatsWeight } = require('../utils/logHelpers');
+const { getTodayInTz } = require('../utils/date');
 
 const router = express.Router();
 router.use(authenticate);
@@ -17,7 +18,8 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: 'Valid weight in kg is required' });
     }
 
-    const logDate = date ? new Date(date) : new Date();
+    // date là chuỗi 'YYYY-MM-DD' (như client gửi); thiếu thì lấy hôm nay theo tz.
+    const logDate = date || getTodayInTz(req.user.profile?.timezone);
     const bmi = req.user.profile?.height
       ? Math.round(calculateBMI(weight, req.user.profile.height) * 10) / 10
       : undefined;

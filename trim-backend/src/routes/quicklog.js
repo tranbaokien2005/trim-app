@@ -114,8 +114,8 @@ router.post('/', async (req, res, next) => {
         origin: resolvedOrigin,
       });
     } else {
-      // weight — date ở model này là kiểu Date (khác 2 model kia), giữ NGUYÊN
-      // hành vi của POST /api/weights: có date thì dùng, không thì lấy bây giờ.
+      // weight — date giờ là chuỗi 'YYYY-MM-DD' (đã chuẩn hoá cùng 2 model kia).
+      // Dùng `day` = date || getTodayInTz(timezone) đã tính ở trên.
       const bmi = req.user.profile?.height
         ? Math.round(calculateBMI(value, req.user.profile.height) * 10) / 10
         : undefined;
@@ -123,7 +123,7 @@ router.post('/', async (req, res, next) => {
       doc = new WeightLog({
         user: userId,
         weight: value,
-        date: date ? new Date(date) : new Date(),
+        date: day,
         bmi,
         source: 'manual',
         clientId: cid,

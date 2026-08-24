@@ -12,6 +12,7 @@ const {
   calculateDailyTarget,
 } = require('../utils/bmr');
 const { getTodayInTz } = require('../utils/date');
+const { syncCurrentStatsBmr } = require('../utils/logHelpers');
 
 const router = express.Router();
 
@@ -46,6 +47,11 @@ router.put('/me', authenticate, async (req, res, next) => {
       updates,
       { new: true, runValidators: true }
     );
+
+    // Profile đổi (height/dob/gender) => BMR đổi => đồng bộ currentStats.bmr/baseline.
+    if (updates.profile !== undefined) {
+      await syncCurrentStatsBmr(req.user._id);
+    }
 
     res.json({ user });
   } catch (error) {

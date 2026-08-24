@@ -108,13 +108,15 @@ describe('Quicklog', () => {
     expect(first.status).toBe(201);
     expect(first.body.duplicate).toBe(false);
 
+    // Assertion load-bearing: "chỉ 1 document được ghi" phải luôn được đánh giá,
+    // kể cả khi status assertion vỡ trước (finding từ verify GĐ trước).
+    const count = await MealLog.countDocuments({ user: userA, clientId: payload.clientId });
+    expect(count).toBe(1);
+
     expect(second.status).toBe(200);
     expect(second.body.ok).toBe(true);
     expect(second.body.duplicate).toBe(true);
     expect(String(second.body.created._id)).toBe(String(first.body.created._id));
-
-    const count = await MealLog.countDocuments({ user: userA, clientId: payload.clientId });
-    expect(count).toBe(1);
   });
 
   // 3 ─────────────────────────────────────────────────────────────────────────

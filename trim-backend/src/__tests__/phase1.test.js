@@ -2,12 +2,19 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const request = require('supertest');
 const app = require('../app');
+const User = require('../models/User');
+const { calculateBaseline } = require('../utils/bmr');
 
 let mongod;
 
 // ── Shared state ─────────────────────────────────────────────────────────────
 let tokenA, tokenB;
 let userA, userB;
+// User CÓ profile đầy đủ (height/dob/gender) — để test chiều "có profile → bmi/bmr đúng".
+// userA/userB KHÔNG có profile (register bỏ qua các field đó) — dùng cho chiều "không profile".
+let tokenP, userP;
+const PROFILE_DOB = '1990-05-15';
+const PROFILE = { dateOfBirth: new Date(PROFILE_DOB), gender: 'female', height: 165 };
 
 const USER_A = {
   name: 'Alice',
@@ -83,6 +90,20 @@ beforeAll(async () => {
   expect(resB.status).toBe(201);
   tokenB = resB.body.accessToken;
   userB = resB.body.user;
+
+  // Register User P và seed profile ĐẦY ĐỦ + currentStats.weight trực tiếp trong DB.
+  // (Register không lưu profile; luồng thật set qua complete-profile. Ở test này ta
+  //  seed trực tiếp để tách bạch việc kiểm bmi/bmr khỏi side-effect của complete-profile.)
+  const resP = await request(app).post('/api/auth/register').send({
+    name: 'Pat', email: 'pat@example.com', password: 'password123',
+  });
+  expect(resP.status).toBe(201);
+  tokenP = resP.body.accessToken;
+  userP = resP.body.user;
+  await User.findByIdAndUpdate(userP._id, {
+    profile: PROFILE,
+    'currentStats.weight': 60,
+  });
 });
 
 afterAll(async () => {
@@ -151,11 +172,23 @@ describe('Auth', () => {
 // WEIGHTS
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Weights', () => {
-  test('POST /api/weights creates a log', async () => {
+  test('POST /api/weights creates a log (user CÓ profile → có bmi đúng)', async () => {
+    const res = await postWeight(tokenP, 69.5);
+    expect(res.status).toBe(201);
+    expect(res.body.weight).toBe(69.5);
+    // Chiều (ii): có profile.height → bmi tính được, ≠ 0, đúng công thức.
+    expect(res.body).toHaveProperty('bmi');
+    const expectedBmi = Math.round((69.5 / Math.pow(PROFILE.height / 100, 2)) * 10) / 10;
+    expect(res.body.bmi).toBe(expectedBmi);
+    expect(res.body.bmi).toBeGreaterThan(0);
+  });
+
+  test('POST /api/weights user KHÔNG profile → không có bmi', async () => {
     const res = await postWeight(tokenA, 69.5);
     expect(res.status).toBe(201);
     expect(res.body.weight).toBe(69.5);
-    expect(res.body).toHaveProperty('bmi');
+    // Chiều (i): không có profile.height → route không tính bmi → field vắng.
+    expect(res.body.bmi).toBeUndefined();
   });
 
   test('POST /api/weights without token returns 401', async () => {
@@ -321,9 +354,11 @@ describe('Meals', () => {
       .get('/api/meals/search?q=chicken')
       .set(auth(tokenA));
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body[0]).toHaveProperty('calories');
+    // Route trả { results: [...] } (meals.js:91,93), không phải array top-level.
+    // Search đã gỡ khỏi UI (CLAUDE.md #9); giữ contract hiện tại của backend.
+    expect(Array.isArray(res.body.results)).toBe(true);
+    expect(res.body.results.length).toBeGreaterThan(0);
+    expect(res.body.results[0]).toHaveProperty('calories');
   });
 
   test('GET /api/meals/search without q returns 400', async () => {
@@ -435,10 +470,11 @@ describe('Stats', () => {
     expect(res.body.caloriesBurned).toBe(0);
   });
 
-  test('GET /api/stats/daily aggregates meals and activities correctly', async () => {
+  test('GET /api/stats/daily aggregates meals and activities correctly (user CÓ profile → bmr đúng)', async () => {
+    // Dùng tokenP (có profile đầy đủ + currentStats.weight) để bmr tính được.
     await request(app)
       .post('/api/meals')
-      .set(auth(tokenA))
+      .set(auth(tokenP))
       .send({
         date: TODAY,
         mealType: 'breakfast',
@@ -446,7 +482,7 @@ describe('Stats', () => {
       });
     await request(app)
       .post('/api/meals')
-      .set(auth(tokenA))
+      .set(auth(tokenP))
       .send({
         date: TODAY,
         mealType: 'lunch',
@@ -454,7 +490,7 @@ describe('Stats', () => {
       });
     await request(app)
       .post('/api/activities')
-      .set(auth(tokenA))
+      .set(auth(tokenP))
       .send({
         date: TODAY,
         entries: [{ name: 'Running', durationMinutes: 30, caloriesBurned: 250 }],
@@ -462,16 +498,33 @@ describe('Stats', () => {
 
     const res = await request(app)
       .get(`/api/stats/daily?date=${TODAY}`)
-      .set(auth(tokenA));
+      .set(auth(tokenP));
 
     expect(res.status).toBe(200);
     expect(res.body.caloriesConsumed).toBe(800);
     expect(res.body.caloriesBurned).toBe(250);
+    // Chiều (ii): có profile → bmr > 0.
     expect(res.body.bmr).toBeGreaterThan(0);
-    // tdee = bmr + caloriesBurned
-    expect(res.body.tdee).toBe(res.body.bmr + res.body.caloriesBurned);
+    // TDEE = BMR + baseline + burned (mô hình baseline ĐANG SHIP trong bmr.js —
+    // baseline là field persist thật, hiển thị trên activity card, có test riêng).
+    // Doc CLAUDE.md:225 / Key Decision #7 ("TDEE = BMR + logged") LỖI THỜI, viết
+    // trước khi baseline được thêm. (Quyết định @trim-manager: sửa test khớp code.)
+    expect(res.body.tdee).toBe(
+      res.body.bmr + calculateBaseline(res.body.bmr) + res.body.caloriesBurned
+    );
     // deficit = tdee - caloriesConsumed
     expect(res.body.deficit).toBe(res.body.tdee - res.body.caloriesConsumed);
+  });
+
+  test('GET /api/stats/daily user KHÔNG profile → bmr = 0', async () => {
+    // Chiều (i): tokenA không có profile → route đặt bmr = 0, có warning.
+    const res = await request(app)
+      .get(`/api/stats/daily?date=${TODAY}`)
+      .set(auth(tokenA));
+
+    expect(res.status).toBe(200);
+    expect(res.body.bmr).toBe(0);
+    expect(res.body.warnings).toContain('PROFILE_INCOMPLETE');
   });
 
   test('GET /api/stats/daily defaults to today', async () => {

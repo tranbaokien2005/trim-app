@@ -10,9 +10,11 @@ const weightLogSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  // 'YYYY-MM-DD' — chuẩn hoá cùng kiểu với MealLog/ActivityLog (trước đây là Date).
+  // Chuỗi 'YYYY-MM-DD' sort từ điển == sort thời gian, nên index {user,date:-1} vẫn đúng.
+  // Cần migration cho document cũ (date kiểu Date) — xem scripts/migrate-weightdate.js.
   date: {
-    type: Date,
-    default: Date.now,
+    type: String,
   },
   bmi: Number,
   notes: String,

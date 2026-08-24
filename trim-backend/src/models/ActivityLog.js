@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { calcSummary } = require('../utils/logHelpers');
 
 const activityEntrySchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -50,5 +51,14 @@ activityLogSchema.index(
   { user: 1, clientId: 1 },
   { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } }
 );
+
+/**
+ * Tự tính summary từ entries trước khi lưu — model là nguồn sự thật duy nhất,
+ * route không phải tự cộng (giảm chỗ sai lệch). Dùng lại calcSummary đã có,
+ * KHÔNG viết lại công thức. Chạy trên mọi .save() (create + update-then-save).
+ */
+activityLogSchema.pre('save', function () {
+  this.summary = calcSummary(this.entries || []);
+});
 
 module.exports = mongoose.model('ActivityLog', activityLogSchema);

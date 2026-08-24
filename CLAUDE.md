@@ -222,11 +222,13 @@ MULTIPLIERS = {
 }
 
 TDEE = BMR × multiplier (fallback if no activity logged)
-TDEE = BMR + logged_activity_calories (preferred)
+TDEE = BMR + baseline(20% BMR) + logged burned calories
 dailyTarget = TDEE - weeklyRate*7700/7 (lose)
 dailyTarget = TDEE + weeklyRate*7700/7 (gain)
 dailyTarget = TDEE (maintain)
 ```
+
+> 2026-08-24: reconciled doc to code — baseline term is intentional per bmr.js rewrite (729fa13). Test 3 assertion updated to match.
 
 ---
 
@@ -294,7 +296,7 @@ For maintain goal users: rotate daily tip on Home.
 4. Home = display only, logging in Log tab
 5. BMR formula: Mifflin-St Jeor
 6. Tier 1 never shows until ≥3 same-weekday data points
-7. TDEE = BMR + logged burned (not multiplier) when data exists
+7. TDEE = BMR + baseline(20% BMR) + logged burned (not multiplier) when data exists
 8. No WeightLog during /auth/register
 9. Food search removed from UI — AI Chat (Tier 3) is primary input
 10. Deficit = target + burned - consumed
