@@ -145,22 +145,22 @@ const AboutYouScreen = ({ navigation, route }) => {
             <Text style={[styles.label, { marginTop: 20 }]}>Gender</Text>
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
               <TouchableOpacity
-                style={[styles.genderBtn, gender === 'male' && styles.genderMale]}
+                style={[styles.genderBtn, gender === 'male' && styles.genderActive]}
                 onPress={() => setGender('male')}
               >
-                <Text style={[styles.genderText, gender === 'male' && { color: 'white' }]}>Male</Text>
+                <Text style={[styles.genderText, gender === 'male' && styles.genderTextActive]}>Male</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.genderBtn, gender === 'female' && styles.genderFemale]}
+                style={[styles.genderBtn, gender === 'female' && styles.genderActive]}
                 onPress={() => setGender('female')}
               >
-                <Text style={[styles.genderText, gender === 'female' && { color: 'white' }]}>Female</Text>
+                <Text style={[styles.genderText, gender === 'female' && styles.genderTextActive]}>Female</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.genderBtn, gender === 'other' && styles.genderOther]}
+                style={[styles.genderBtn, gender === 'other' && styles.genderActive]}
                 onPress={() => setGender('other')}
               >
-                <Text style={[styles.genderText, gender === 'other' && { color: 'white' }]}>Other</Text>
+                <Text style={[styles.genderText, gender === 'other' && styles.genderTextActive]}>Other</Text>
               </TouchableOpacity>
             </View>
 
@@ -303,10 +303,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  genderMale: { backgroundColor: '#2196F3', borderColor: '#2196F3' },
-  genderFemale: { backgroundColor: '#E91E8C', borderColor: '#E91E8C' },
-  genderOther: { backgroundColor: '#9B59B6', borderColor: '#9B59B6' },
+  // Brand-green selection pattern (mirrors GoalTypeScreen.optionCardActive) —
+  // replaces the off-brand blue/pink/purple fills.
+  genderActive: { backgroundColor: 'rgba(46,204,113,0.08)', borderColor: '#2ECC71' },
   genderText: { fontSize: 15, fontWeight: '600', color: '#888' },
+  genderTextActive: { color: '#2ECC71' },
   btn: {
     marginTop: 28,
     height: 52,
