@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../services/api';
+import ActionChooserSheet from '../../components/ui/ActionChooserSheet';
 
 const C = {
   bg: '#0F0F0F',
@@ -370,6 +371,7 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
   const [meals, setMeals]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showChooser, setShowChooser] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // form state
@@ -754,7 +756,8 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
           <Text style={tabStyles.totalVal}>{Math.round(totalCal)} cal</Text>
         </View>
 
-        {/* ── Quick Log pills (always above meal list) ── */}
+        {/* ── Saved (secondary): Quick Log pills + create template ── */}
+        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Đã lưu</Text>
         <TemplatePillRow
           templates={templates}
           loading={templatesLoading}
@@ -1237,27 +1240,24 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
         {!showForm && (
           <TouchableOpacity
             style={tabStyles.addBtn}
-            onPress={() => { setMealType(getMealType()); setShowForm(true); }}
+            onPress={() => setShowChooser(true)}
           >
-            <Text style={tabStyles.addBtnText}>+ Add Meal</Text>
+            <Text style={tabStyles.addBtnText}>+ Thêm bữa ăn</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        onPress={() => navigation.navigate('ChatInput')}
-        style={{
-          position: 'absolute', bottom: 20, right: 16,
-          flexDirection: 'row', alignItems: 'center',
-          backgroundColor: '#2ECC71', borderRadius: 28,
-          paddingHorizontal: 20, paddingVertical: 13,
-          shadowColor: '#2ECC71', shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.5, shadowRadius: 12, elevation: 8, gap: 8,
-        }}
-      >
-        <Text style={{ fontSize: 16 }}>✨</Text>
-        <Text style={{ color: '#0F0F0F', fontSize: 15, fontWeight: '700', letterSpacing: 0.5 }}>AI Log</Text>
-      </TouchableOpacity>
+      {/* Single primary add action → chooser (Nhập tay / ✨ AI). Replaces the
+          separate "+ Add Meal" button and the floating "AI Log" FAB. */}
+      <ActionChooserSheet
+        visible={showChooser}
+        onClose={() => setShowChooser(false)}
+        title="Thêm bữa ăn"
+        manualLabel="Nhập tay"
+        aiLabel="✨ AI"
+        onManual={() => { setMealType(getMealType()); setShowForm(true); }}
+        onAI={() => navigation.navigate('ChatInput')}
+      />
 
       {/* Edit item bottom sheet */}
       <Modal visible={editingMeal !== null} transparent animationType="slide" onRequestClose={() => setEditingMeal(null)}>
@@ -1570,6 +1570,7 @@ const AddActivityModal = ({ visible, onClose, onSaved, today }) => {
 };
 
 const ActivityTab = ({ today, refreshTrigger, navigation }) => {
+  const [showChooser, setShowChooser] = useState(false);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -1785,7 +1786,8 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
           <Text style={tabStyles.totalVal}>{totalBurned} cal · {totalMinutes} min</Text>
         </View>
 
-        {/* ── Quick Log pills (top) ── */}
+        {/* ── Saved (secondary): Quick Log pills + create template ── */}
+        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Đã lưu</Text>
         <TemplatePillRow
           templates={templates}
           loading={templatesLoading}
@@ -1924,25 +1926,22 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
           ))
         )}
 
-        <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowModal(true)}>
-          <Text style={tabStyles.addBtnText}>+ Add Activity</Text>
+        <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowChooser(true)}>
+          <Text style={tabStyles.addBtnText}>+ Thêm hoạt động</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <TouchableOpacity
-        onPress={() => navigation.navigate('ActivityChat')}
-        style={{
-          position: 'absolute', bottom: 20, right: 16,
-          flexDirection: 'row', alignItems: 'center',
-          backgroundColor: '#2ECC71', borderRadius: 28,
-          paddingHorizontal: 20, paddingVertical: 13,
-          shadowColor: '#2ECC71', shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.5, shadowRadius: 12, elevation: 8, gap: 8,
-        }}
-      >
-        <Text style={{ fontSize: 16 }}>✨</Text>
-        <Text style={{ color: '#0F0F0F', fontSize: 15, fontWeight: '700', letterSpacing: 0.5 }}>AI Log</Text>
-      </TouchableOpacity>
+      {/* Single primary add action → chooser (Nhập tay / ✨ AI). Replaces the
+          separate "+ Add Activity" button and the floating "AI Log" FAB. */}
+      <ActionChooserSheet
+        visible={showChooser}
+        onClose={() => setShowChooser(false)}
+        title="Thêm hoạt động"
+        manualLabel="Nhập tay"
+        aiLabel="✨ AI"
+        onManual={() => setShowModal(true)}
+        onAI={() => navigation.navigate('ActivityChat')}
+      />
 
       <AddActivityModal
         visible={showModal}

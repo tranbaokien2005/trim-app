@@ -117,11 +117,18 @@ const RegisterScreen = ({ navigation }) => {
       });
     } catch (err) {
       console.log('Register error:', err?.response?.data || err.message, err);
-      // axios puts the backend message on err.response.data.message; err.message
-      // would only be "Request failed with status code 400".
-      setApiError(
-        err?.response?.data?.message || err.message || 'Something went wrong. Please try again.'
-      );
+      // Map express-validator's errors[] to per-field messages (like LoginScreen);
+      // fall back to the generic apiError banner only when there's no field array.
+      const data = err?.response?.data;
+      if (Array.isArray(data?.errors)) {
+        const mapped = { name: '', email: '', password: '', confirmPassword: '' };
+        data.errors.forEach((e) => { if (e.path in mapped) mapped[e.path] = e.msg; });
+        setErrors((prev) => ({ ...prev, ...mapped }));
+      } else {
+        setApiError(
+          data?.message || err.message || 'Something went wrong. Please try again.'
+        );
+      }
     } finally {
       setLoading(false);
     }

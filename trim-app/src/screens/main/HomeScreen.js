@@ -71,7 +71,7 @@ const goalLabel = (type) => {
 
 // ─── SVG: Calorie ring ───────────────────────────────────────────────────────
 
-const CalorieRingSVG = ({ consumed, tdee, ringColor, deficitAbs, isSurplus, statusLabel }) => {
+const CalorieRingSVG = ({ consumed, tdee, ringColor, deficitAbs, isSurplus, statusLabel, nothingLogged }) => {
   const SIZE = 180;
   const SW = 14;
   const radius = (SIZE - SW) / 2;
@@ -104,7 +104,8 @@ const CalorieRingSVG = ({ consumed, tdee, ringColor, deficitAbs, isSurplus, stat
         />
       </Svg>
       <View style={ringStyles.center}>
-        <Text style={ringStyles.deficitNum}>{isSurplus ? '+' : ''}{deficitAbs}</Text>
+        <Text style={ringStyles.deficitNum}>{nothingLogged ? '—' : `${isSurplus ? '+' : ''}${deficitAbs}`}</Text>
+        <Text style={ringStyles.centerCaption}>{nothingLogged ? '' : `${isSurplus ? 'over' : 'left'} today`}</Text>
         <Text style={[ringStyles.statusLabel, { color: ringColor }]}>{statusLabel}</Text>
       </View>
     </View>
@@ -119,6 +120,7 @@ const ringStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   deficitNum:  { color: '#FFFFFF', fontSize: 36, fontWeight: '800' },
+  centerCaption: { color: '#666666', fontSize: 11, fontWeight: '600', marginTop: 2 },
   statusLabel: { fontSize: 13, fontWeight: '600', marginTop: 4 },
 });
 
@@ -375,6 +377,13 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [showWelcome]);
 
+  // Computed here (before the effect that animates it) to avoid a temporal-dead-zone
+  // on `showWarning` — it was previously referenced in this effect's dep array but
+  // declared further down. Recomputed from `stats` directly so it needs no other derived value.
+  const showWarning =
+    new Date().getHours() >= 18 &&
+    (stats?.caloriesConsumed || 0) < (stats?.dailyTarget ?? stats?.tdee ?? 0) * 0.6;
+
   useEffect(() => {
     if (showWarning) {
       warningAnim.setValue(0);
@@ -432,12 +441,18 @@ const HomeScreen = ({ navigation }) => {
   // Mức deficit mục tiêu/ngày, suy từ số backend trả về (không dùng hằng số calo/kg).
   const targetDeficit = Math.abs(tdee - target);
 
-  const actualDeficit = stats?.deficit ?? (tdee - consumed);
+  // Deficit accounts for burned calories (bug #7): target + burned − consumed.
+  const actualDeficit = target + loggedBurned - consumed;
   const deficitAbs    = Math.abs(actualDeficit);
-  const isSurplus     = consumed > tdee;
+  const isSurplus     = actualDeficit < 0; // over budget
+
+  // Neutral empty state: nothing logged today → grey ring, no "eating too little" alarm.
+  const nothingLogged = consumed === 0 && loggedBurned === 0;
 
   let ringColor, statusLabel;
-  if (consumed < target * 0.6) {
+  if (nothingLogged) {
+    ringColor = '#888888'; statusLabel = 'Chưa log bữa nào hôm nay';
+  } else if (consumed < target * 0.6) {
     ringColor = '#FF9500'; statusLabel = 'Eating too little';
   } else if (consumed < target * 0.85) {
     ringColor = '#F1C40F'; statusLabel = 'Under goal';
@@ -446,9 +461,6 @@ const HomeScreen = ({ navigation }) => {
   } else {
     ringColor = '#E74C3C'; statusLabel = 'Over budget';
   }
-
-  const hour        = new Date().getHours();
-  const showWarning = hour >= 18 && consumed < target * 0.6;
 
   const macros = (stats?.meals || []).reduce(
     (acc, m) => ({
@@ -496,8 +508,6 @@ const HomeScreen = ({ navigation }) => {
       lost: currentWeight < startWeight,
     };
   }
-
-  const nothingLogged = consumed === 0 && loggedBurned === 0;
 
   // Goal completion flags
   const goalReached = currentWeight != null && targetWeight != null && (
@@ -667,6 +677,7 @@ const HomeScreen = ({ navigation }) => {
             deficitAbs={deficitAbs}
             isSurplus={isSurplus}
             statusLabel={statusLabel}
+            nothingLogged={nothingLogged}
           />
 
           <View style={styles.calorieRow}>

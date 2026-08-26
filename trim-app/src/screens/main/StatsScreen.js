@@ -142,7 +142,15 @@ const StatsScreen = () => {
 
   const totals = weekly?.totals || {};
   const days = weekly?.days || [];
-  const daysInDeficit = days.filter((d) => d.deficit > 0).length;
+  // Only days with food logged count as real data — an unlogged day has
+  // deficit = target + burned − 0 (a big false positive), so exclude them.
+  const loggedDays    = days.filter((d) => d.caloriesConsumed > 0);
+  const hasData       = loggedDays.length > 0;
+  const enoughData    = loggedDays.length >= 2;
+  const daysInDeficit = loggedDays.filter((d) => d.deficit > 0).length;
+  const avgDeficit    = hasData
+    ? Math.round(loggedDays.reduce((s, d) => s + d.deficit, 0) / loggedDays.length)
+    : null;
   const activeGoal = user?.goals?.find((g) => g.isActive);
   const latestWeight = weights[0];
 
@@ -178,11 +186,11 @@ const StatsScreen = () => {
             <Text style={styles.summaryLabel}>Avg Calories</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: totals.avgDeficit >= 0 ? C.primary : C.danger }]}>
-              {Math.abs(totals.avgDeficit || 0)}
+            <Text style={[styles.summaryValue, { color: !enoughData ? C.secondary : avgDeficit >= 0 ? C.primary : C.danger }]}>
+              {enoughData ? Math.abs(avgDeficit) : '—'}
             </Text>
             <Text style={styles.summaryLabel}>
-              {(totals.avgDeficit || 0) >= 0 ? 'Avg Deficit' : 'Avg Surplus'}
+              {!enoughData ? 'Chưa đủ dữ liệu' : avgDeficit >= 0 ? 'Avg Deficit' : 'Avg Surplus'}
             </Text>
           </View>
           <View style={styles.summaryCard}>
@@ -194,10 +202,10 @@ const StatsScreen = () => {
         {/* 7-Day Calorie Bar Chart */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Calories — Last 7 Days</Text>
-          {days.length > 0 ? (
+          {hasData ? (
             <BarChart days={days} />
           ) : (
-            <Text style={styles.emptyText}>No data yet</Text>
+            <Text style={styles.emptyText}>Log bữa ăn để thấy xu hướng</Text>
           )}
         </View>
 

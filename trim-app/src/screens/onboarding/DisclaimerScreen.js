@@ -23,7 +23,7 @@ const DisclaimerScreen = ({ navigation }) => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('Login')}
+          onPress={() => navigation.navigate('CreateAccount')}
           activeOpacity={0.85}
         >
           <Text style={styles.buttonText}>I understand</Text>
