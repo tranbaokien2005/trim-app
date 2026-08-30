@@ -92,7 +92,7 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
           <Text style={styles.statValue}>{preview.totalCaloriesConsumed ?? 0}</Text>
         </View>
         <View style={[styles.stat, styles.statMiddle]}>
-          <Text style={styles.statLabel}>Calories out</Text>
+          <Text style={styles.statLabel}>Calories burned</Text>
           <Text style={styles.statValue}>{preview.totalCaloriesBurned ?? 0}</Text>
         </View>
         <View style={styles.stat}>
