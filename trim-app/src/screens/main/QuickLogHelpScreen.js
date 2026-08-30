@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Linking } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SHORTCUT_ICLOUD_URL } from '../../config/quickLog';
 
 /**
  * Hướng dẫn Quick Log qua Back Tap (RUNBOOK 006 P2.1). Màn tĩnh trong Settings/Profile.
@@ -35,6 +36,23 @@ const QuickLogHelpScreen = ({ navigation }) => {
           open the app first. Great for logging on the go.
         </Text>
 
+        {SHORTCUT_ICLOUD_URL ? (
+          <View style={{ marginBottom: 24 }}>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => Linking.openURL(SHORTCUT_ICLOUD_URL)}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={C.bg} />
+              <Text style={styles.addBtnText}>Add to Shortcuts</Text>
+            </TouchableOpacity>
+            <Text style={styles.addSub}>
+              One tap installs the ready-made “Trim Quick Log” shortcut. Then just assign it to
+              Back Tap (step 2 below).
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={styles.sectionTitle}>1. Create the Shortcut</Text>
         <View style={styles.card}>
           <Step n="1">Open the Shortcuts app and tap + to create a new shortcut.</Step>
@@ -57,10 +75,12 @@ const QuickLogHelpScreen = ({ navigation }) => {
           <Step n="3">Trim opens and logs it for you.</Step>
         </View>
 
-        <Text style={styles.note}>
-          A one-tap iCloud shortcut link is coming soon — for now, set it up manually with the
-          steps above.
-        </Text>
+        {!SHORTCUT_ICLOUD_URL && (
+          <Text style={styles.note}>
+            A one-tap iCloud shortcut link is coming soon — for now, set it up manually with the
+            steps above.
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -88,6 +108,12 @@ const styles = StyleSheet.create({
   stepNumText: { color: C.primary, fontSize: 13, fontWeight: '700' },
   stepText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 21, flex: 1 },
   note: { color: C.secondary, fontSize: 13, lineHeight: 20, fontStyle: 'italic' },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15,
+  },
+  addBtnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
+  addSub: { color: C.secondary, fontSize: 13, lineHeight: 19, marginTop: 10, textAlign: 'center' },
 });
 
 export default QuickLogHelpScreen;
