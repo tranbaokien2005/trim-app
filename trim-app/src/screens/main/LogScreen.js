@@ -12,10 +12,10 @@ import {
   RefreshControl,
   Alert,
   KeyboardAvoidingView,
-  Keyboard,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../services/api';
 import ActionChooserSheet from '../../components/ui/ActionChooserSheet';
@@ -48,10 +48,10 @@ const getWeightChangeColor = (currentW, prevW, goalType) => {
   return Math.abs(diff) <= 1 ? '#2ECC71' : '#FFB74D';
 };
 
-const getToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const dateToYMD = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const getToday = () => dateToYMD(new Date());
 
 const formatDisplayDate = (dateStr) => {
   const [year, month, day] = dateStr.split('-');
@@ -1469,22 +1469,21 @@ const AddActivityModal = ({ visible, onClose, onSaved, today }) => {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+      <SafeAreaView style={modalStyles.container} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
-          style={modalStyles.container}
+          style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={modalStyles.header}>
-              <Text style={modalStyles.title}>Add Activity</Text>
-              <TouchableOpacity onPress={handleClose}>
-                <Text style={modalStyles.closeBtn}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>Add Activity</Text>
+            <TouchableOpacity onPress={handleClose}>
+              <Text style={modalStyles.closeBtn}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
 
-            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" bounces={false}>
+          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" bounces={false}>
               <Text style={modalStyles.label}>Activity Name</Text>
               <TextInput
                 style={modalStyles.input}
@@ -1551,20 +1550,19 @@ const AddActivityModal = ({ visible, onClose, onSaved, today }) => {
                   </TouchableOpacity>
                 ))}
               </View>
-            </ScrollView>
+          </ScrollView>
 
-            <TouchableOpacity
-              style={[modalStyles.saveBtn, saving && { opacity: 0.6 }]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              {saving
-                ? <ActivityIndicator color={C.bg} />
-                : <Text style={modalStyles.saveBtnText}>Save Activity</Text>}
-            </TouchableOpacity>
-          </SafeAreaView>
+          <TouchableOpacity
+            style={[modalStyles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator color={C.bg} />
+              : <Text style={modalStyles.saveBtnText}>Save Activity</Text>}
+          </TouchableOpacity>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -2077,78 +2075,104 @@ const AddWeightModal = ({ visible, onClose, onSaved }) => {
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const today = getToday();
+  const [dateObj, setDateObj] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
 
-  const resetForm = () => { setWeight(''); setNotes(''); };
+  const resetForm = () => { setWeight(''); setNotes(''); setDateObj(new Date()); setShowPicker(false); };
   const handleClose = () => { resetForm(); onClose(); };
 
   const handleSave = () => {
     const w = parseFloat(weight);
     if (isNaN(w) || w <= 0) { Alert.alert('Valid weight required'); return; }
     setSaving(true);
-    api.post('/weights', { weight: w, date: today, notes: notes.trim() || undefined })
+    api.post('/weights', { weight: w, date: dateToYMD(dateObj), notes: notes.trim() || undefined })
       .then(() => { resetForm(); onSaved(); })
       .catch((err) => Alert.alert('Error', err?.response?.data?.message || 'Failed to save'))
       .finally(() => setSaving(false));
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+      <SafeAreaView style={modalStyles.container} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
-          style={modalStyles.container}
-          behavior="padding"
-          keyboardVerticalOffset={40}
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={modalStyles.header}>
-              <Text style={modalStyles.title}>Log Weight</Text>
-              <TouchableOpacity onPress={handleClose}>
-                <Text style={modalStyles.closeBtn}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
-              <View style={{ paddingHorizontal: 16 }}>
-                <Text style={modalStyles.label}>Date</Text>
-                <Text style={[modalStyles.input, { color: C.secondary, lineHeight: 48 }]}>
-                  {formatDisplayDate(today)}
-                </Text>
-
-                <Text style={modalStyles.label}>Weight (kg)</Text>
-                <TextInput
-                  style={modalStyles.input}
-                  placeholder="70.0"
-                  placeholderTextColor={C.secondary}
-                  keyboardType="numeric"
-                  value={weight}
-                  onChangeText={setWeight}
-                />
-
-                <Text style={modalStyles.label}>Notes (optional)</Text>
-                <TextInput
-                  style={[modalStyles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
-                  placeholder="How are you feeling?"
-                  placeholderTextColor={C.secondary}
-                  multiline
-                  value={notes}
-                  onChangeText={setNotes}
-                />
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[modalStyles.saveBtn, saving && { opacity: 0.6 }]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              {saving
-                ? <ActivityIndicator color={C.bg} />
-                : <Text style={modalStyles.saveBtnText}>Save Weight</Text>}
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>Log Weight</Text>
+            <TouchableOpacity onPress={handleClose}>
+              <Text style={modalStyles.closeBtn}>Cancel</Text>
             </TouchableOpacity>
-          </SafeAreaView>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" bounces={false}>
+            <Text style={modalStyles.label}>Date</Text>
+            <TouchableOpacity
+              style={[modalStyles.input, { justifyContent: 'center' }]}
+              onPress={() => setShowPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: C.text, fontSize: 15 }}>
+                {formatDisplayDate(dateToYMD(dateObj))}
+              </Text>
+            </TouchableOpacity>
+
+            {showPicker && (
+              <DateTimePicker
+                value={dateObj}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowPicker(Platform.OS === 'ios');
+                  if (selectedDate) setDateObj(selectedDate);
+                }}
+                themeVariant="dark"
+                textColor="white"
+              />
+            )}
+            {showPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity
+                onPress={() => setShowPicker(false)}
+                style={{ alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 }}
+              >
+                <Text style={{ color: C.primary, fontWeight: '600' }}>Done</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={modalStyles.label}>Weight (kg)</Text>
+            <TextInput
+              style={modalStyles.input}
+              placeholder="70.0"
+              placeholderTextColor={C.secondary}
+              keyboardType="numeric"
+              value={weight}
+              onChangeText={setWeight}
+            />
+
+            <Text style={modalStyles.label}>Notes (optional)</Text>
+            <TextInput
+              style={[modalStyles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+              placeholder="How are you feeling?"
+              placeholderTextColor={C.secondary}
+              multiline
+              value={notes}
+              onChangeText={setNotes}
+            />
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[modalStyles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator color={C.bg} />
+              : <Text style={modalStyles.saveBtnText}>Save Weight</Text>}
+          </TouchableOpacity>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </SafeAreaView>
     </Modal>
   );
 };
