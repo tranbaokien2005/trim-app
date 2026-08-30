@@ -15,7 +15,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../store/authStore';
 import { login as loginService } from '../../services/auth';
@@ -188,7 +188,7 @@ const LoginScreen = ({ navigation }) => {
                   onPress={() => setShowPassword((s) => !s)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons
+                  <MaterialCommunityIcons
                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={20}
                     color="#666666"
