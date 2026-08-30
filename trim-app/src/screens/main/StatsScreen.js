@@ -140,7 +140,6 @@ const StatsScreen = () => {
     );
   }
 
-  const totals = weekly?.totals || {};
   const days = weekly?.days || [];
   // Only days with food logged count as real data — an unlogged day has
   // deficit = target + burned − 0 (a big false positive), so exclude them.
