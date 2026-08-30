@@ -21,6 +21,7 @@ import { useAuth } from '../../store/authStore';
 import api, { getPatternToday } from '../../services/api';
 import { formatDateYYYYMMDD } from '../../utils/dateUtils';
 import SmartDayCard from '../../components/SmartDayCard';
+import InfoSheet, { InfoDot } from '../../components/ui/InfoSheet';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -319,6 +320,7 @@ const HomeScreen = ({ navigation }) => {
   const [pattern, setPattern] = useState(null);
   const [patternLoading, setPatternLoading] = useState(false);
   const [patternDismissed, setPatternDismissed] = useState(false);
+  const [infoKey, setInfoKey] = useState(null);
 
   const load = useCallback((isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -699,7 +701,10 @@ const HomeScreen = ({ navigation }) => {
               <Text style={[styles.calValue, { color: nothingLogged ? '#888888' : ringColor }]}>
                 {nothingLogged ? '—' : deficitAbs}
               </Text>
-              <Text style={styles.calLabel}>{nothingLogged ? 'Target deficit' : 'Deficit'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.calLabel}>{nothingLogged ? 'Target deficit' : 'Deficit'}</Text>
+                <InfoDot onPress={() => setInfoKey('deficit')} />
+              </View>
             </View>
           </View>
 
@@ -857,20 +862,32 @@ const HomeScreen = ({ navigation }) => {
           <View style={[styles.card, styles.halfCard]}>
             <Text style={styles.miniLabel}>ACTIVITY</Text>
             <View style={styles.miniRow}>
-              <Text style={styles.miniMeta}>BMR</Text>
+              <View style={styles.miniMetaWrap}>
+                <Text style={styles.miniMeta}>BMR</Text>
+                <InfoDot onPress={() => setInfoKey('bmr')} />
+              </View>
               <Text style={styles.miniValue}>{bmr}</Text>
             </View>
             <View style={styles.miniRow}>
-              <Text style={styles.miniMeta}>Baseline</Text>
+              <View style={styles.miniMetaWrap}>
+                <Text style={styles.miniMeta}>Baseline</Text>
+                <InfoDot onPress={() => setInfoKey('baseline')} />
+              </View>
               <Text style={styles.miniValue}>{baseline}</Text>
             </View>
             <View style={styles.miniRow}>
-              <Text style={styles.miniMeta}>Burned</Text>
+              <View style={styles.miniMetaWrap}>
+                <Text style={styles.miniMeta}>Burned</Text>
+                <InfoDot onPress={() => setInfoKey('burned')} />
+              </View>
               <Text style={styles.miniValue}>{loggedBurned}</Text>
             </View>
             <View style={styles.miniDivider} />
             <View style={[styles.miniRow, { marginBottom: 0 }]}>
-              <Text style={[styles.miniMeta, { color: '#2ECC71', fontWeight: '600' }]}>TDEE</Text>
+              <View style={styles.miniMetaWrap}>
+                <Text style={[styles.miniMeta, { color: '#2ECC71', fontWeight: '600' }]}>TDEE</Text>
+                <InfoDot onPress={() => setInfoKey('tdee')} />
+              </View>
               <Text style={[styles.miniValue, { color: '#2ECC71', fontSize: 16, fontWeight: '700' }]}>{tdee}</Text>
             </View>
           </View>
@@ -1049,6 +1066,8 @@ const HomeScreen = ({ navigation }) => {
           </Animated.View>
         </View>
       </Modal>
+
+      <InfoSheet visible={!!infoKey} infoKey={infoKey} onClose={() => setInfoKey(null)} />
     </SafeAreaView>
   );
 };
@@ -1184,6 +1203,7 @@ const styles = StyleSheet.create({
   miniRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   miniValue:   { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   miniMeta:    { color: '#666', fontSize: 12 },
+  miniMetaWrap:{ flexDirection: 'row', alignItems: 'center' },
   miniDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 6 },
 
   // Weight card specifics

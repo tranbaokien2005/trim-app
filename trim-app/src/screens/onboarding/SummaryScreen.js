@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { calcBMR, calcTDEE, calcDailyTarget, calcProjectedDate } from '../../utils/bmr';
+import InfoSheet, { InfoDot } from '../../components/ui/InfoSheet';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
 
@@ -22,6 +23,7 @@ const SummaryScreen = ({ navigation, route }) => {
   const { userData } = route.params;
   const { completeOnboarding } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [infoKey, setInfoKey] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -79,8 +81,8 @@ const SummaryScreen = ({ navigation, route }) => {
   ];
 
   const calcRows = [
-    { label: 'BMR', value: `${calculations.bmr} kcal/day` },
-    { label: 'TDEE', value: `${calculations.tdee} kcal/day` },
+    { label: 'BMR', value: `${calculations.bmr} kcal/day`, info: 'bmr' },
+    { label: 'TDEE', value: `${calculations.tdee} kcal/day`, info: 'tdee' },
     { label: 'Daily Target', value: `${isMaintain ? calculations.tdee : calculations.dailyTarget} kcal/day` },
     ...(!isMaintain ? [{ label: 'Projected Date', value: calculations.projectedDate.toLocaleDateString() }] : []),
   ];
@@ -143,7 +145,10 @@ const SummaryScreen = ({ navigation, route }) => {
                 {calcRows.map((row, i) => (
                   <View key={row.label}>
                     <View style={styles.row}>
-                      <Text style={styles.calcLabel}>{row.label}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.calcLabel}>{row.label}</Text>
+                        {row.info && <InfoDot onPress={() => setInfoKey(row.info)} />}
+                      </View>
                       <Text style={styles.calcValue}>{row.value}</Text>
                     </View>
                     {i < calcRows.length - 1 && <View style={styles.calcDivider} />}
@@ -165,6 +170,7 @@ const SummaryScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>
+        <InfoSheet visible={!!infoKey} infoKey={infoKey} onClose={() => setInfoKey(null)} />
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
