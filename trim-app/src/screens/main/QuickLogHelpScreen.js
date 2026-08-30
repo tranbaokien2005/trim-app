@@ -67,6 +67,14 @@ const QuickLogHelpScreen = ({ navigation }) => {
           <Step n="2">Choose Double Tap (or Triple Tap).</Step>
           <Step n="3">Scroll to Shortcuts and pick “Trim Quick Log”.</Step>
         </View>
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => Linking.openSettings()}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="cog-outline" size={18} color={C.primary} />
+          <Text style={styles.secondaryBtnText}>Open Settings</Text>
+        </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>3. Use it</Text>
         <View style={styles.card}>
@@ -114,6 +122,12 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
   addSub: { color: C.secondary, fontSize: 13, lineHeight: 19, marginTop: 10, textAlign: 'center' },
+  secondaryBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 14, paddingVertical: 13, marginTop: -8, marginBottom: 22,
+    borderWidth: 1, borderColor: 'rgba(46,204,113,0.4)',
+  },
+  secondaryBtnText: { color: C.primary, fontSize: 14, fontWeight: '700' },
 });
 
 export default QuickLogHelpScreen;

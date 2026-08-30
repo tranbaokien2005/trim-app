@@ -6,4 +6,4 @@
 //
 // While this is empty, the app hides the "Add to Shortcuts" button and shows the
 // manual setup steps only. Fill it in and the one-tap button appears automatically.
-export const SHORTCUT_ICLOUD_URL = '';
+export const SHORTCUT_ICLOUD_URL = 'https://www.icloud.com/shortcuts/38117971d37f4feebcd9853ce84a8921';
