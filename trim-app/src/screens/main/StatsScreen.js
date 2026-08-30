@@ -190,7 +190,7 @@ const StatsScreen = () => {
               {enoughData ? Math.abs(avgDeficit) : '—'}
             </Text>
             <Text style={styles.summaryLabel}>
-              {!enoughData ? 'Chưa đủ dữ liệu' : avgDeficit >= 0 ? 'Avg Deficit' : 'Avg Surplus'}
+              {!enoughData ? 'Not enough data' : avgDeficit >= 0 ? 'Avg Deficit' : 'Avg Surplus'}
             </Text>
           </View>
           <View style={styles.summaryCard}>
@@ -205,7 +205,7 @@ const StatsScreen = () => {
           {hasData ? (
             <BarChart days={days} />
           ) : (
-            <Text style={styles.emptyText}>Log bữa ăn để thấy xu hướng</Text>
+            <Text style={styles.emptyText}>Log meals to see trends</Text>
           )}
         </View>
 

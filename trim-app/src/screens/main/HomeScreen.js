@@ -451,7 +451,7 @@ const HomeScreen = ({ navigation }) => {
 
   let ringColor, statusLabel;
   if (nothingLogged) {
-    ringColor = '#888888'; statusLabel = 'Chưa log bữa nào hôm nay';
+    ringColor = '#888888'; statusLabel = 'No meals logged yet';
   } else if (consumed < target * 0.6) {
     ringColor = '#FF9500'; statusLabel = 'Eating too little';
   } else if (consumed < target * 0.85) {

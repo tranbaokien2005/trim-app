@@ -50,19 +50,19 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
       const d = res?.data || {};
       Alert.alert(
         '',
-        `Đã apply! +${d.mealLogsCreated || 0} bữa ăn, +${d.activityLogsCreated || 0} hoạt động`,
+        `Applied! +${d.mealLogsCreated || 0} meals, +${d.activityLogsCreated || 0} activities`,
       );
       onApplied && onApplied();
       // Parent unmounts this card after onApplied → no need to reset state.
     } catch (e) {
       const status = e?.response?.status;
       if (status === 409) {
-        Alert.alert('', 'Hôm nay đã có log rồi. Apply sẽ không ghi đè.');
+        Alert.alert('', "You already have logs today. Apply won't overwrite them.");
         onHidden && onHidden(); // treat as dismissed for today
         return;
       }
-      const msg = e?.response?.data?.error || 'Có lỗi xảy ra. Vui lòng thử lại.';
-      Alert.alert('Lỗi', msg);
+      const msg = e?.response?.data?.error || 'Something went wrong. Please try again.';
+      Alert.alert('Error', msg);
       setApplying(false);
     }
   };
@@ -82,17 +82,17 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.headerIcon}>📋</Text>
-        <Text style={styles.headerTitle}>{dayName} của bạn</Text>
+        <Text style={styles.headerTitle}>Your {dayName}</Text>
       </View>
 
       {/* ── Summary row (3 stats) ── */}
       <View style={styles.summaryRow}>
         <View style={styles.stat}>
-          <Text style={styles.statLabel}>Calo nạp</Text>
+          <Text style={styles.statLabel}>Calories in</Text>
           <Text style={styles.statValue}>{preview.totalCaloriesConsumed ?? 0}</Text>
         </View>
         <View style={[styles.stat, styles.statMiddle]}>
-          <Text style={styles.statLabel}>Calo đốt</Text>
+          <Text style={styles.statLabel}>Calories out</Text>
           <Text style={styles.statValue}>{preview.totalCaloriesBurned ?? 0}</Text>
         </View>
         <View style={styles.stat}>
@@ -104,7 +104,7 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
       {/* ── Meals preview ── */}
       {meals.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bữa ăn</Text>
+          <Text style={styles.sectionTitle}>Meals</Text>
           {meals.map((meal, i) => (
             <View key={`${meal.mealType}-${i}`} style={styles.mealRow}>
               <View style={styles.mealBadge}>
@@ -121,10 +121,10 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
       {/* ── Activities preview ── */}
       {activities.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hoạt động</Text>
+          <Text style={styles.sectionTitle}>Activity</Text>
           {visibleActivities.map((act, i) => (
             <Text key={`${act.name}-${i}`} style={styles.activityRow} numberOfLines={1}>
-              {act.name} · {act.durationMinutes}p · {act.caloriesBurned} cal
+              {act.name} · {act.durationMinutes} min · {act.caloriesBurned} cal
             </Text>
           ))}
           {hiddenActivities > 0 && (
@@ -135,7 +135,7 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
 
       {/* ── Footnote ── */}
       <Text style={styles.footnote}>
-        Dựa trên {pattern?.dataPointCount ?? 0} ngày {dayName} gần nhất
+        Based on your last {pattern?.dataPointCount ?? 0} {dayName}s
       </Text>
 
       {/* ── Buttons ── */}

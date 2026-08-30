@@ -343,7 +343,7 @@ const ActivityChatScreen = ({ navigation }) => {
                 style={[styles.baseInput, { flex: 1 }]}
                 value={item.activity}
                 onChangeText={(v) => updateItem(i, 'activity', v)}
-                placeholder="Activity name & details (e.g. chạy bộ nhẹ)"
+                placeholder="Activity name & details (e.g. light jog)"
                 placeholderTextColor="#444"
                 color="#FFFFFF"
                 fontSize={14}
@@ -425,7 +425,7 @@ const ActivityChatScreen = ({ navigation }) => {
           style={styles.freeTextInput}
           value={freeText}
           onChangeText={setFreeText}
-          placeholder={'e.g. đi bộ 8000 bước, gym chest day 1 tiếng, swimming 45 min moderate pace...'}
+          placeholder={'e.g. walked 8000 steps, gym chest day 1 hour, swimming 45 min moderate pace...'}
           placeholderTextColor="#444"
           color="#FFFFFF"
           fontSize={14}

@@ -757,7 +757,7 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
         </View>
 
         {/* ── Saved (secondary): Quick Log pills + create template ── */}
-        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Đã lưu</Text>
+        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Saved</Text>
         <TemplatePillRow
           templates={templates}
           loading={templatesLoading}
@@ -1242,7 +1242,7 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
             style={tabStyles.addBtn}
             onPress={() => setShowChooser(true)}
           >
-            <Text style={tabStyles.addBtnText}>+ Thêm bữa ăn</Text>
+            <Text style={tabStyles.addBtnText}>+ Add meal</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -1252,8 +1252,8 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
       <ActionChooserSheet
         visible={showChooser}
         onClose={() => setShowChooser(false)}
-        title="Thêm bữa ăn"
-        manualLabel="Nhập tay"
+        title="Add meal"
+        manualLabel="Manual"
         aiLabel="✨ AI"
         onManual={() => { setMealType(getMealType()); setShowForm(true); }}
         onAI={() => navigation.navigate('ChatInput')}
@@ -1787,7 +1787,7 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
         </View>
 
         {/* ── Saved (secondary): Quick Log pills + create template ── */}
-        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Đã lưu</Text>
+        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Saved</Text>
         <TemplatePillRow
           templates={templates}
           loading={templatesLoading}
@@ -1927,7 +1927,7 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
         )}
 
         <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowChooser(true)}>
-          <Text style={tabStyles.addBtnText}>+ Thêm hoạt động</Text>
+          <Text style={tabStyles.addBtnText}>+ Add activity</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -1936,8 +1936,8 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
       <ActionChooserSheet
         visible={showChooser}
         onClose={() => setShowChooser(false)}
-        title="Thêm hoạt động"
-        manualLabel="Nhập tay"
+        title="Add activity"
+        manualLabel="Manual"
         aiLabel="✨ AI"
         onManual={() => setShowModal(true)}
         onAI={() => navigation.navigate('ActivityChat')}

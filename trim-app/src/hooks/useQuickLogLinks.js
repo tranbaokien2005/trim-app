@@ -16,16 +16,16 @@ import { postQuickLog, undoQuickLog } from '../services/quicklog';
  *
  * LƯU Ý: scheme trim:// KHÔNG chạy trong Expo Go — cần development build.
  */
-const KIND_LABEL = { meal: 'bữa ăn', activity: 'hoạt động', weight: 'cân nặng' };
+const KIND_LABEL = { meal: 'meal', activity: 'activity', weight: 'weight' };
 
 const describe = (intent, created) => {
-  if (intent.kind === 'weight') return `Đã ghi ${intent.value} kg`;
+  if (intent.kind === 'weight') return `Logged ${intent.value} kg`;
   if (intent.kind === 'activity') {
     const burned = created?.summary?.totalCaloriesBurned;
-    return burned ? `Đã ghi hoạt động · ${burned} kcal đốt` : 'Đã ghi hoạt động';
+    return burned ? `Logged activity · ${burned} kcal burned` : 'Logged activity';
   }
   const cal = created?.totals?.calories;
-  return cal ? `Đã ghi bữa ăn · ${cal} kcal` : 'Đã ghi bữa ăn';
+  return cal ? `Logged meal · ${cal} kcal` : 'Logged meal';
 };
 
 export default function useQuickLogLinks({ ready, onNeedsManualLog }) {
@@ -67,11 +67,11 @@ export default function useQuickLogLinks({ ready, onNeedsManualLog }) {
   }, [enqueue]);
 
   const submit = useCallback(async (intent) => {
-    showToast({ status: 'saving', message: `Đang ghi ${KIND_LABEL[intent.kind]}...`, intent });
+    showToast({ status: 'saving', message: `Logging ${KIND_LABEL[intent.kind]}...`, intent });
     try {
       const data = await postQuickLog({ ...intent, origin: 'deeplink' });
       if (data && data.duplicate) {
-        showToast({ status: 'duplicate', message: 'Đã ghi rồi', intent }, 3000);
+        showToast({ status: 'duplicate', message: 'Already logged', intent }, 3000);
         return;
       }
       const created = data && data.created;
@@ -83,7 +83,7 @@ export default function useQuickLogLinks({ ready, onNeedsManualLog }) {
       }, 6000);
     } catch (_) {
       // Không mất dữ liệu: đưa user tới màn Log kèm nội dung, và giữ nút Thử lại.
-      showToast({ status: 'error', message: 'Chưa ghi được — thử lại hoặc nhập tay', intent });
+      showToast({ status: 'error', message: "Couldn't log — retry or add manually", intent });
       if (onNeedsManualLog) onNeedsManualLog(intent);
     }
   }, [showToast, onNeedsManualLog]);
@@ -102,12 +102,12 @@ export default function useQuickLogLinks({ ready, onNeedsManualLog }) {
   const undo = useCallback(async () => {
     if (!toast || !toast.undo) return;
     const { kind, id } = toast.undo;
-    showToast({ status: 'saving', message: 'Đang hoàn tác...' });
+    showToast({ status: 'saving', message: 'Undoing...' });
     try {
       await undoQuickLog(kind, id);
-      showToast({ status: 'duplicate', message: 'Đã hoàn tác' }, 2500);
+      showToast({ status: 'duplicate', message: 'Undone' }, 2500);
     } catch (_) {
-      showToast({ status: 'error', message: 'Hoàn tác không thành công' }, 4000);
+      showToast({ status: 'error', message: 'Undo failed' }, 4000);
     }
   }, [toast, showToast]);
 

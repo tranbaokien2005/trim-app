@@ -34,12 +34,12 @@ const QuickLogToast = ({ toast, onUndo, onRetry, onDismiss }) => {
 
         {showUndo && (
           <TouchableOpacity onPress={onUndo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.action, { color: accent }]}>Hoàn tác</Text>
+            <Text style={[styles.action, { color: accent }]}>Undo</Text>
           </TouchableOpacity>
         )}
         {showRetry && (
           <TouchableOpacity onPress={onRetry} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.action, { color: accent }]}>Thử lại</Text>
+            <Text style={[styles.action, { color: accent }]}>Retry</Text>
           </TouchableOpacity>
         )}
         {toast.status !== 'saving' && (

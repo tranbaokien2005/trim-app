@@ -8,20 +8,20 @@ export const formatDateYYYYMMDD = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-/** 0=CN, 1=T2, ..., 6=T7 -> Vietnamese weekday name. */
+/** 0=Sun, 1=Mon, ..., 6=Sat -> weekday name. */
 export const getDayNameVi = (dayOfWeek) => {
-  const names = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư',
-                 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday',
+                 'Thursday', 'Friday', 'Saturday'];
   return names[dayOfWeek] || '';
 };
 
-/** 'breakfast' -> 'Sáng', etc. Falls back to the raw value. */
+/** 'breakfast' -> 'Breakfast', etc. Falls back to the raw value. */
 export const translateMealType = (mt) => {
   const map = {
-    breakfast: 'Sáng',
-    lunch: 'Trưa',
-    dinner: 'Tối',
-    snack: 'Phụ',
+    breakfast: 'Breakfast',
+    lunch: 'Lunch',
+    dinner: 'Dinner',
+    snack: 'Snack',
   };
   return map[mt] || mt;
 };
