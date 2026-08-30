@@ -122,12 +122,8 @@ const SaveTemplateModal = ({ visible, onClose, onSave, defaultName, saving, type
 const TemplatePillRow = ({
   templates, loading, onSelect,
   emptyLabel = 'No saved templates yet',
-  getLabelFn, onLongPress, onCreateFirst,
+  getLabelFn, onLongPress,
   sectionLabel = 'Saved Meals',
-  emptyEmoji = '🍱',
-  emptyTitle = 'Save your favorite meals',
-  emptySub = 'for 1-tap logging next time',
-  emptyBtnText = '+ Create your first meal',
 }) => {
   const getLabel = getLabelFn || ((t) => t.name);
 
@@ -142,18 +138,7 @@ const TemplatePillRow = ({
     <View style={tmplPillStyles.wrapper}>
       <Text style={tmplPillStyles.sectionLabel}>{sectionLabel}</Text>
       {templates.length === 0 ? (
-        onCreateFirst ? (
-          <View style={tmplPillStyles.emptyCard}>
-            <Text style={{ fontSize: 32, marginBottom: 12 }}>{emptyEmoji}</Text>
-            <Text style={tmplPillStyles.emptyCardTitle}>{emptyTitle}</Text>
-            <Text style={tmplPillStyles.emptyCardSub}>{emptySub}</Text>
-            <TouchableOpacity style={tmplPillStyles.emptyCardBtn} onPress={onCreateFirst}>
-              <Text style={tmplPillStyles.emptyCardBtnText}>{emptyBtnText}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={tmplPillStyles.emptyText}>{emptyLabel}</Text>
-        )
+        <Text style={tmplPillStyles.emptyText}>{emptyLabel}</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
@@ -751,43 +736,17 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
         }
       >
+        {/* Primary action first — big "+ Add meal" (chooser: Manual / ✨ AI) */}
+        {!showForm && (
+          <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowChooser(true)}>
+            <Text style={tabStyles.addBtnText}>+ Add meal</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={tabStyles.totalBar}>
           <Text style={tabStyles.totalLabel}>Total today</Text>
           <Text style={tabStyles.totalVal}>{Math.round(totalCal)} cal</Text>
         </View>
-
-        {/* ── Saved (secondary): Quick Log pills + create template ── */}
-        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Saved</Text>
-        <TemplatePillRow
-          templates={templates}
-          loading={templatesLoading}
-          onSelect={(t) => { setSelectedTemplate(t); setShowTemplateSheet(true); }}
-          onCreateFirst={() => { setShowCreateForm(true); setCtShowAddItemForm(true); }}
-          onLongPress={(t) => Alert.alert(
-            t.name,
-            'What would you like to do?',
-            [
-              { text: 'Edit',   onPress: () => openEditTemplate(t) },
-              { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTemplate(t) },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          )}
-          emptyLabel="No saved meals yet"
-          getLabelFn={(t) => {
-            const cal = t.items?.reduce((s, i) => s + (i.calories || 0), 0) || 0;
-            return cal > 0 ? `${t.name} · ${cal} cal` : t.name;
-          }}
-        />
-
-        {/* ── Create New Template toggle ── */}
-        {!showCreateForm && (
-          <TouchableOpacity
-            style={createFormStyles.toggleBtn}
-            onPress={() => { setShowCreateForm(true); setCtShowAddItemForm(true); }}
-          >
-            <Text style={createFormStyles.toggleBtnText}>+ Create New Template</Text>
-          </TouchableOpacity>
-        )}
 
         {/* ── Create Template inline form ── */}
         {showCreateForm && (
@@ -1237,17 +1196,40 @@ const MealsTab = ({ today, refreshTrigger, navigation, draft, onDraftConsumed })
           </View>
         )}
 
-        {!showForm && (
+        {/* ── Saved (secondary) — shrunk to the bottom; one ghost entry ── */}
+        {templates.length > 0 && (
+          <TemplatePillRow
+            templates={templates}
+            loading={templatesLoading}
+            onSelect={(t) => { setSelectedTemplate(t); setShowTemplateSheet(true); }}
+            onLongPress={(t) => Alert.alert(
+              t.name,
+              'What would you like to do?',
+              [
+                { text: 'Edit',   onPress: () => openEditTemplate(t) },
+                { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTemplate(t) },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            )}
+            sectionLabel="Saved Meals"
+            getLabelFn={(t) => {
+              const cal = t.items?.reduce((s, i) => s + (i.calories || 0), 0) || 0;
+              return cal > 0 ? `${t.name} · ${cal} cal` : t.name;
+            }}
+          />
+        )}
+        {!showCreateForm && (
           <TouchableOpacity
-            style={tabStyles.addBtn}
-            onPress={() => setShowChooser(true)}
+            style={createFormStyles.toggleBtn}
+            onPress={() => { setShowCreateForm(true); setCtShowAddItemForm(true); }}
+            activeOpacity={0.7}
           >
-            <Text style={tabStyles.addBtnText}>+ Add meal</Text>
+            <Text style={createFormStyles.toggleBtnText}>+ Save a meal</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
 
-      {/* Single primary add action → chooser (Nhập tay / ✨ AI). Replaces the
+      {/* Single primary add action → chooser (Manual / ✨ AI). Replaces the
           separate "+ Add Meal" button and the floating "AI Log" FAB. */}
       <ActionChooserSheet
         visible={showChooser}
@@ -1779,44 +1761,15 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
         contentContainerStyle={{ paddingBottom: 80 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
+        {/* Primary action first — big "+ Add activity" (chooser: Manual / ✨ AI) */}
+        <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowChooser(true)}>
+          <Text style={tabStyles.addBtnText}>+ Add activity</Text>
+        </TouchableOpacity>
+
         <View style={tabStyles.totalBar}>
           <Text style={tabStyles.totalLabel}>Total burned</Text>
           <Text style={tabStyles.totalVal}>{totalBurned} cal · {totalMinutes} min</Text>
         </View>
-
-        {/* ── Saved (secondary): Quick Log pills + create template ── */}
-        <Text style={{ color: '#666', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Saved</Text>
-        <TemplatePillRow
-          templates={templates}
-          loading={templatesLoading}
-          onSelect={(t) => { setSelectedTemplate(t); setShowTemplateSheet(true); }}
-          sectionLabel="Saved Activities"
-          emptyEmoji="🏃"
-          emptyTitle="Save your activities"
-          emptySub="for 1-tap logging next time"
-          emptyBtnText="+ Create your first activity"
-          onCreateFirst={() => setShowCreateForm(true)}
-          onLongPress={(t) => Alert.alert(
-            t.name,
-            'What would you like to do?',
-            [
-              { text: 'Edit',   onPress: () => openEditTemplate(t) },
-              { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTemplate(t) },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          )}
-          getLabelFn={(t) => t.caloriesBurned > 0 ? `${t.name} · ${t.caloriesBurned} cal` : t.name}
-        />
-
-        {/* ── Create New Template toggle ── */}
-        {!showCreateForm && (
-          <TouchableOpacity
-            style={createFormStyles.toggleBtn}
-            onPress={() => setShowCreateForm(true)}
-          >
-            <Text style={createFormStyles.toggleBtnText}>+ Create New Template</Text>
-          </TouchableOpacity>
-        )}
 
         {/* ── Create / Edit Template inline form ── */}
         {showCreateForm && (
@@ -1924,12 +1877,37 @@ const ActivityTab = ({ today, refreshTrigger, navigation }) => {
           ))
         )}
 
-        <TouchableOpacity style={tabStyles.addBtn} onPress={() => setShowChooser(true)}>
-          <Text style={tabStyles.addBtnText}>+ Add activity</Text>
-        </TouchableOpacity>
+        {/* ── Saved (secondary) — shrunk to the bottom; one ghost entry ── */}
+        {templates.length > 0 && (
+          <TemplatePillRow
+            templates={templates}
+            loading={templatesLoading}
+            onSelect={(t) => { setSelectedTemplate(t); setShowTemplateSheet(true); }}
+            sectionLabel="Saved Activities"
+            onLongPress={(t) => Alert.alert(
+              t.name,
+              'What would you like to do?',
+              [
+                { text: 'Edit',   onPress: () => openEditTemplate(t) },
+                { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTemplate(t) },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            )}
+            getLabelFn={(t) => t.caloriesBurned > 0 ? `${t.name} · ${t.caloriesBurned} cal` : t.name}
+          />
+        )}
+        {!showCreateForm && (
+          <TouchableOpacity
+            style={createFormStyles.toggleBtn}
+            onPress={() => setShowCreateForm(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={createFormStyles.toggleBtnText}>+ Save an activity</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
-      {/* Single primary add action → chooser (Nhập tay / ✨ AI). Replaces the
+      {/* Single primary add action → chooser (Manual / ✨ AI). Replaces the
           separate "+ Add Activity" button and the floating "AI Log" FAB. */}
       <ActionChooserSheet
         visible={showChooser}
@@ -2481,22 +2459,6 @@ const tabStyles = StyleSheet.create({
     alignItems: 'center',
   },
   addBtnText: { color: C.bg, fontWeight: '700', fontSize: 15 },
-  floatBtn: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#2ECC71',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#2ECC71',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
 });
 
 const weightStyles = StyleSheet.create({
@@ -2889,21 +2851,6 @@ const tmplPillStyles = StyleSheet.create({
   wrapper:      { marginBottom: 8, marginTop: 4 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginHorizontal: 16 },
   emptyText:    { fontSize: 12, color: '#444', marginHorizontal: 16, marginBottom: 4 },
-  emptyCard: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 24,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-  },
-  emptyCardTitle:   { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
-  emptyCardSub:     { color: C.secondary, fontSize: 13, marginTop: 4 },
-  emptyCardBtn:     { marginTop: 16, backgroundColor: C.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20 },
-  emptyCardBtnText: { color: '#0F0F0F', fontWeight: '700', fontSize: 14 },
   pill: {
     paddingHorizontal: 16,
     paddingVertical: 8,

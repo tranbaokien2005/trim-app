@@ -151,6 +151,11 @@ const StatsScreen = () => {
   const avgDeficit    = hasData
     ? Math.round(loggedDays.reduce((s, d) => s + d.deficit, 0) / loggedDays.length)
     : null;
+  // Average only over days with food logged — dividing by a fixed 7 makes one
+  // logged day of 905 look like 129/day (same empty-day bug as Days Deficit).
+  const avgCalories   = enoughData
+    ? Math.round(loggedDays.reduce((s, d) => s + (d.caloriesConsumed || 0), 0) / loggedDays.length)
+    : null;
   const activeGoal = user?.goals?.find((g) => g.isActive);
   const latestWeight = weights[0];
 
@@ -182,8 +187,10 @@ const StatsScreen = () => {
         <Text style={styles.sectionLabel}>This Week</Text>
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{Math.round(totals.caloriesConsumed / 7) || 0}</Text>
-            <Text style={styles.summaryLabel}>Avg Calories</Text>
+            <Text style={[styles.summaryValue, !enoughData && { color: C.secondary }]}>
+              {enoughData ? avgCalories : '—'}
+            </Text>
+            <Text style={styles.summaryLabel}>{enoughData ? 'Avg Calories' : 'Not enough data'}</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: !enoughData ? C.secondary : avgDeficit >= 0 ? C.primary : C.danger }]}>

@@ -168,9 +168,9 @@ const GoalRingSVG = ({ pct }) => {
 // ─── Macro data ──────────────────────────────────────────────────────────────
 
 const MACRO_DEFS = [
-  { key: 'protein', letter: 'P', accent: '#4FC3F7', barBg: 'rgba(79,195,247,0.15)',  barFill: 'rgba(79,195,247,0.6)',  maxVal: 150 },
-  { key: 'carbs',   letter: 'C', accent: '#FFB74D', barBg: 'rgba(255,183,77,0.15)',  barFill: 'rgba(255,183,77,0.6)',  maxVal: 250 },
-  { key: 'fat',     letter: 'F', accent: '#CE93D8', barBg: 'rgba(206,147,216,0.15)', barFill: 'rgba(206,147,216,0.6)', maxVal: 65  },
+  { key: 'protein', name: 'Protein', accent: '#4FC3F7', barBg: 'rgba(79,195,247,0.15)',  barFill: 'rgba(79,195,247,0.6)',  maxVal: 150 },
+  { key: 'carbs',   name: 'Carbs',   accent: '#FFB74D', barBg: 'rgba(255,183,77,0.15)',  barFill: 'rgba(255,183,77,0.6)',  maxVal: 250 },
+  { key: 'fat',     name: 'Fat',     accent: '#CE93D8', barBg: 'rgba(206,147,216,0.15)', barFill: 'rgba(206,147,216,0.6)', maxVal: 65  },
 ];
 
 // ─── Smart goal default ──────────────────────────────────────────────────────
@@ -449,10 +449,16 @@ const HomeScreen = ({ navigation }) => {
   // Neutral empty state: nothing logged today → grey ring, no "eating too little" alarm.
   const nothingLogged = consumed === 0 && loggedBurned === 0;
 
+  // Don't cry "eating too little" mid-day — someone who only had breakfast is fine.
+  // The under-eating warning only fires late in the day AND when the whole-day intake
+  // is genuinely low in absolute terms. Before that, a low count is just "Under goal".
+  const isLateDay      = new Date().getHours() >= 20;
+  const trulyTooLittle = consumed > 0 && consumed < 1200 && consumed < target * 0.6;
+
   let ringColor, statusLabel;
   if (nothingLogged) {
     ringColor = '#888888'; statusLabel = 'No meals logged yet';
-  } else if (consumed < target * 0.6) {
+  } else if (isLateDay && trulyTooLittle) {
     ringColor = '#FF9500'; statusLabel = 'Eating too little';
   } else if (consumed < target * 0.85) {
     ringColor = '#F1C40F'; statusLabel = 'Under goal';
@@ -690,8 +696,10 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.calLabel}>TDEE</Text>
             </View>
             <View style={styles.calItem}>
-              <Text style={[styles.calValue, { color: ringColor }]}>{deficitAbs}</Text>
-              <Text style={styles.calLabel}>Deficit</Text>
+              <Text style={[styles.calValue, { color: nothingLogged ? '#888888' : ringColor }]}>
+                {nothingLogged ? '—' : deficitAbs}
+              </Text>
+              <Text style={styles.calLabel}>{nothingLogged ? 'Target deficit' : 'Deficit'}</Text>
             </View>
           </View>
 
@@ -757,7 +765,7 @@ const HomeScreen = ({ navigation }) => {
               <View key={m.key} style={styles.macroCard}>
                 <View style={styles.macroHeader}>
                   <View style={[styles.macroDot, { backgroundColor: m.accent }]} />
-                  <Text style={[styles.macroLetter, { color: m.accent }]}>{m.letter}</Text>
+                  <Text style={[styles.macroLetter, { color: m.accent }]}>{m.name}</Text>
                 </View>
                 <Text style={styles.macroValue}>
                   {Math.round(value)}
