@@ -19,6 +19,7 @@ router.post('/parse-photo', requireAiConsent, async (req, res, next) => {
     }
     // Accept a raw base64 string or a data URL — strip the data: prefix if present.
     const base64 = image.replace(/^data:image\/\w+;base64,/, '').trim();
+    console.log(`[parse-photo] request from user=${req.user?._id} imageLen=${base64.length} (~${Math.round((base64.length * 0.75) / 1024)}KB)`);
 
     let items;
     try {

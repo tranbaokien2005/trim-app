@@ -174,8 +174,10 @@ const ChatInputScreen = ({ navigation }) => {
         setShowConsent(true);
         return;
       }
+      // Technical failure (server error, endpoint unreachable, network) — NOT "no food".
+      // Keep these distinct so a plumbing problem never masquerades as "couldn't identify".
       setUiState('empty');
-      setErrorText("Couldn't identify the food — try a clearer photo or enter manually.");
+      setErrorText('Something went wrong analyzing the photo. Please try again, or enter it manually.');
     }
   };
 
