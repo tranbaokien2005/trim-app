@@ -19,17 +19,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../services/api';
 import ActionChooserSheet from '../../components/ui/ActionChooserSheet';
+import { dark } from '../../theme/tokens';
 
+// Core palette sourced from the shared tokens (single source of truth: src/theme/tokens).
+// modal bg + solid border have no exact token yet — kept literal.
 const C = {
-  bg: '#0F0F0F',
-  card: '#1A1A1A',
+  bg: dark.bg,
+  card: dark.surface,
   modal: '#1E1E1E',
-  primary: '#2ECC71',
-  text: '#FFFFFF',
-  secondary: '#888888',
-  danger: '#E74C3C',
+  primary: dark.accent,
+  text: dark.textPrimary,
+  secondary: dark.textSecondary,
+  danger: dark.danger,
   border: '#2A2A2A',
-  input: '#252525',
+  input: dark.surfaceAlt,
 };
 
 const getBMIInfo = (bmi) => {

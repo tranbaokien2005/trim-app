@@ -11,14 +11,18 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyPattern } from '../services/api';
 import { formatDateYYYYMMDD, getDayNameVi, translateMealType } from '../utils/dateUtils';
+import { dark } from '../theme/tokens';
 
-// Local design tokens — mirrors the per-screen `C` convention (see LogScreen.js).
+// Colors sourced from the shared token palette — single source of truth: src/theme/tokens.
 const C = {
-  primary: '#2ECC71',
-  text: '#FFFFFF',
-  secondary: '#888888',
-  muted: '#666666',
-  danger: '#E74C3C',
+  primary: dark.accent,
+  text: dark.textPrimary,
+  secondary: dark.textSecondary,
+  muted: dark.textMuted,
+  danger: dark.danger,
+  card: dark.card,
+  border: dark.border,
+  accentText: dark.accentText,
 };
 
 const MAX_ACTIVITIES = 3;
@@ -167,8 +171,8 @@ const SmartDayCard = ({ pattern, onApplied, onHidden }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: C.card,
+    borderColor: C.border,
     borderWidth: 1,
     borderRadius: 28,
     padding: 20,
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  applyBtnText: { color: '#0F0F0F', fontSize: 15, fontWeight: '700' },
+  applyBtnText: { color: C.accentText, fontSize: 15, fontWeight: '700' },
   hideBtn: {
     height: 48,
     borderRadius: 14,

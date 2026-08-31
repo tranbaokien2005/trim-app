@@ -13,14 +13,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
 import { formatDateYYYYMMDD } from '../../utils/dateUtils';
+import { dark } from '../../theme/tokens';
 
+// Core palette sourced from the shared tokens (single source of truth: src/theme/tokens).
+// Two values have no exact token yet (solid border, status orange) — kept literal.
 const C = {
-  bg: '#0F0F0F',
-  card: '#1A1A1A',
-  primary: '#2ECC71',
-  text: '#FFFFFF',
-  secondary: '#888888',
-  danger: '#E74C3C',
+  bg: dark.bg,
+  card: dark.surface,
+  primary: dark.accent,
+  text: dark.textPrimary,
+  secondary: dark.textSecondary,
+  danger: dark.danger,
   border: '#2A2A2A',
   orange: '#F39C12',
 };

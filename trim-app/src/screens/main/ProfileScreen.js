@@ -14,14 +14,17 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
+import { dark } from '../../theme/tokens';
 
+// Core palette sourced from the shared tokens (single source of truth: src/theme/tokens).
+// destructive red + solid border have no exact token yet — kept literal.
 const C = {
-  bg: '#0F0F0F',
-  card: '#1A1A1A',
-  primary: '#2ECC71',
-  text: '#FFFFFF',
-  secondary: '#888888',
-  danger: '#E74C3C',
+  bg: dark.bg,
+  card: dark.surface,
+  primary: dark.accent,
+  text: dark.textPrimary,
+  secondary: dark.textSecondary,
+  danger: dark.danger,
   destructive: '#FF4444',
   border: '#2A2A2A',
 };
