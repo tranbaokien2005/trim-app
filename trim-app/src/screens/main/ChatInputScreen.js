@@ -11,9 +11,12 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../../store/authStore';
 import api from '../../services/api';
 import ConsentModal from '../../components/ConsentModal';
+import { PHOTO_AI_ENABLED } from '../../config/features';
 
 const getToday = () => {
   const d = new Date();
@@ -60,6 +63,7 @@ const ChatInputScreen = ({ navigation }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [totalCalories, setTotalCalories] = useState(0);
   const [showConsent, setShowConsent] = useState(false); // AI consent gate (guideline 5.1.2(i))
+  const [analyzingLabel, setAnalyzingLabel] = useState('Analyzing...');
 
   const displayTotal  = parsedItems.reduce((s, i) => s + (i.displayCalories || 0), 0);
   const mealTypeLabel = MEAL_LABELS[getMealType()];
@@ -115,6 +119,7 @@ const ChatInputScreen = ({ navigation }) => {
     const finalPrompt = allParts.join(', ');
 
     setErrorText('');
+    setAnalyzingLabel('Analyzing...');
     setUiState('loading');
     try {
       const res = await api.post('/meals/parse-text', { text: finalPrompt });
@@ -138,6 +143,86 @@ const ChatInputScreen = ({ navigation }) => {
       setUiState('empty');
       setErrorText("Couldn't parse that. Try again.");
     }
+  };
+
+  // ─── Photo AI logic (reuses the SAME review + log flow) ──────────────────────
+
+  const analyzePhoto = async (base64) => {
+    setErrorText('');
+    setAnalyzingLabel('Analyzing your meal…');
+    setUiState('loading');
+    try {
+      const res = await api.post('/ai/parse-photo', { image: base64 });
+      const items = res.data?.items || [];
+      if (items.length === 0) {
+        setUiState('empty');
+        setErrorText("Couldn't identify the food — try a clearer photo or enter manually.");
+        return;
+      }
+      setParsedItems(items.map(enrich));
+      try {
+        const statsRes = await api.get('/stats/daily', { params: { date: getToday() } });
+        setRemainingCalories(statsRes.data?.remaining ?? null);
+      } catch {
+        setRemainingCalories(null);
+      }
+      setUiState('results');
+    } catch (err) {
+      if (err?.response?.status === 403 && err?.response?.data?.code === 'AI_CONSENT_REQUIRED') {
+        setUiState('empty');
+        setErrorText('');
+        setShowConsent(true);
+        return;
+      }
+      setUiState('empty');
+      setErrorText("Couldn't identify the food — try a clearer photo or enter manually.");
+    }
+  };
+
+  const pickAndAnalyze = async (source) => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Permission needed',
+          source === 'camera'
+            ? 'Enable camera access in Settings to snap a meal photo.'
+            : 'Enable photo access in Settings to pick a meal photo.'
+        );
+        return;
+      }
+      const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: false };
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      // Cap the long edge at ~1024px and compress to JPEG q0.6 to keep the upload small.
+      const resize = (asset.width || 0) >= (asset.height || 0) ? { width: 1024 } : { height: 1024 };
+      const manip = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      if (!manip.base64) {
+        Alert.alert('Error', 'Could not process the image. Please try again.');
+        return;
+      }
+      await analyzePhoto(manip.base64);
+    } catch (e) {
+      Alert.alert('Error', 'Could not open the photo. Please try again.');
+    }
+  };
+
+  const handlePhoto = () => {
+    Alert.alert('Add a meal photo', 'Where should the photo come from?', [
+      { text: 'Take Photo', onPress: () => pickAndAnalyze('camera') },
+      { text: 'Choose from Library', onPress: () => pickAndAnalyze('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const setItemMultiplier = (index, multiplier) =>
@@ -202,7 +287,7 @@ const ChatInputScreen = ({ navigation }) => {
       return (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#2ECC71" />
-          <Text style={styles.analyzingText}>Analyzing...</Text>
+          <Text style={styles.analyzingText}>{analyzingLabel}</Text>
         </View>
       );
     }
@@ -402,6 +487,26 @@ const ChatInputScreen = ({ navigation }) => {
           </Text>
         </View>
 
+        {/* Photo AI entry — reuses this same review + log flow after analyzing */}
+        {PHOTO_AI_ENABLED && (
+          <>
+            <TouchableOpacity
+              style={styles.photoBtn}
+              onPress={handlePhoto}
+              activeOpacity={0.85}
+              disabled={uiState === 'loading'}
+            >
+              <Text style={styles.photoBtnIcon}>📷</Text>
+              <Text style={styles.photoBtnText}>Snap a photo of your meal</Text>
+            </TouchableOpacity>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}> OR TYPE IT IN </Text>
+              <View style={styles.dividerLine} />
+            </View>
+          </>
+        )}
+
         {/* Quick form */}
         <Text style={styles.sectionLabel}>QUICK ADD</Text>
 
@@ -520,6 +625,7 @@ const ChatInputScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.ghostBtn} onPress={handleTryAgain}>
             <Text style={styles.ghostBtnText}>Try again</Text>
           </TouchableOpacity>
+          <Text style={styles.disclaimer}>Estimated — not medical advice.</Text>
         </>
       );
     }
@@ -720,6 +826,16 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#0F0F0F', fontWeight: '700', fontSize: 15 },
   ghostBtn:       { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   ghostBtnText:   { color: '#666', fontSize: 14 },
+  // Outlined (not solid green) so the empty state keeps a single primary button.
+  photoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: 'rgba(46,204,113,0.08)',
+    borderColor: 'rgba(46,204,113,0.4)', borderWidth: 1,
+    borderRadius: 16, paddingVertical: 14,
+  },
+  photoBtnIcon: { fontSize: 20 },
+  photoBtnText: { color: '#2ECC71', fontWeight: '700', fontSize: 15 },
+  disclaimer: { color: '#555', fontSize: 11, textAlign: 'center', marginTop: 12 },
 });
 
 export default ChatInputScreen;
