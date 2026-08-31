@@ -382,9 +382,13 @@ const HomeScreen = ({ navigation }) => {
   // Computed here (before the effect that animates it) to avoid a temporal-dead-zone
   // on `showWarning` — it was previously referenced in this effect's dep array but
   // declared further down. Recomputed from `stats` directly so it needs no other derived value.
-  const showWarning =
-    new Date().getHours() >= 18 &&
-    (stats?.caloriesConsumed || 0) < (stats?.dailyTarget ?? stats?.tdee ?? 0) * 0.6;
+  // Same gate as the ring's "Eating too little" tier (P1-1): only late in the day AND
+  // when the whole-day intake is genuinely low in absolute terms. No banner mid-day.
+  const showWarning = (() => {
+    const c = stats?.caloriesConsumed || 0;
+    const t = stats?.dailyTarget ?? stats?.tdee ?? 0;
+    return new Date().getHours() >= 20 && c > 0 && c < 1200 && c < t * 0.6;
+  })();
 
   useEffect(() => {
     if (showWarning) {

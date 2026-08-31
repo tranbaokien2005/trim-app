@@ -72,6 +72,10 @@ const INTENSITIES = ['Low', 'Medium', 'High'];
 
 const SaveTemplateModal = ({ visible, onClose, onSave, defaultName, saving, type = 'meal' }) => {
   const [name, setName] = useState('');
+  const isActivity = type === 'activity';
+  const noun = isActivity ? 'activity' : 'meal';
+  const Noun = isActivity ? 'Activity' : 'Meal';
+  const namePlaceholder = isActivity ? 'Name this activity (e.g. Morning Run)' : 'Name this meal (e.g. Office Lunch)';
 
   useEffect(() => {
     if (visible) setName(defaultName || '');
@@ -86,7 +90,7 @@ const SaveTemplateModal = ({ visible, onClose, onSave, defaultName, saving, type
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={saveModalStyles.sheet}>
             <View style={saveModalStyles.handle} />
-            <Text style={saveModalStyles.title}>Save this meal?</Text>
+            <Text style={saveModalStyles.title}>Save this {noun}?</Text>
             <Text style={saveModalStyles.body}>
               {type === 'meal'
                 ? 'Save it so you can log this meal in 1 tap next time'
@@ -96,7 +100,7 @@ const SaveTemplateModal = ({ visible, onClose, onSave, defaultName, saving, type
               style={saveModalStyles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Name this meal (e.g. Office Lunch)"
+              placeholder={namePlaceholder}
               placeholderTextColor="#444"
               returnKeyType="done"
               color="#FFF"
@@ -108,7 +112,7 @@ const SaveTemplateModal = ({ visible, onClose, onSave, defaultName, saving, type
             >
               {saving
                 ? <ActivityIndicator color="#0F0F0F" />
-                : <Text style={saveModalStyles.saveBtnText}>Save Meal</Text>}
+                : <Text style={saveModalStyles.saveBtnText}>Save {Noun}</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={saveModalStyles.skipBtn} onPress={onClose} disabled={saving}>
               <Text style={saveModalStyles.skipText}>Not now</Text>
