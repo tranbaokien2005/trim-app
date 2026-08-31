@@ -12,6 +12,7 @@ const statsRoutes = require('./routes/stats');
 const templateRoutes = require('./routes/templates');
 const patternRoutes  = require('./routes/patterns');
 const quicklogRoutes = require('./routes/quicklog');
+const aiRoutes = require('./routes/ai');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/patterns',  patternRoutes);
 app.use('/api/quicklog',  quicklogRoutes);
+app.use('/api/ai',        aiRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
